@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.1 – Build 3 – 2026-10-01
+
+- Replace the Scene Control object-tree picker with a dropdown of existing Scene Control instances to avoid the console's "Node does not exist - Get Parent" error in that dialog.
+- Show stale controller IDs as disabled choices requiring reselection; reject invalid selection callbacks.
+
 ## 1.1 – Build 2 – 2026-10-01
 
 - Select and detect one light instance instead of scanning a category.

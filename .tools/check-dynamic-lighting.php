@@ -30,7 +30,7 @@ class IPSModuleStrict
     }
 }
 
-$objects = [39774 => ['ObjectType' => 1, 'ObjectName' => 'Kitchen sink'], 41254 => ['ObjectType' => 1]];
+$objects = [39774 => ['ObjectType' => 1, 'ObjectName' => 'Kitchen sink'], 41254 => ['ObjectType' => 1, 'ObjectName' => 'Beleuchtung']];
 $variables = [];
 $children = [39774 => [], 41254 => []];
 foreach ([
@@ -59,6 +59,7 @@ function IPS_GetVariable(int $id): array { return $GLOBALS['variables'][$id]; }
 function IPS_VariableExists(int $id): bool { return isset($GLOBALS['variables'][$id]); }
 function IPS_InstanceExists(int $id): bool { return isset($GLOBALS['objects'][$id]) && $GLOBALS['objects'][$id]['ObjectType'] === 1; }
 function IPS_GetInstance(int $id): array { return ['ModuleInfo' => ['ModuleName' => $id === 41254 ? 'SceneControl' : 'Light']]; }
+function IPS_GetInstanceListByModuleID(string $moduleID): array { return $moduleID === '{87F46796-CC43-442D-94FD-AAA0BD8D9F54}' ? [41254] : []; }
 function GetValue(int $id): mixed { return $id === 43668 ? 16711680 : 0; }
 
 require __DIR__ . '/../DynamicLighting/module.php';
@@ -128,6 +129,20 @@ check(field($form['elements'], 'DiscoveryInstanceID')['type'] === 'SelectInstanc
 check(field($form['elements'], 'TVScene')['options'][5]['caption'] === 'Fernsehen', 'TV selector must use actual scene names');
 $module->SelectSceneControl(41254);
 check($module->formUpdates['ActiveSceneID']['value'] === '44543', 'Scene selection must discover ActiveScene by ident');
+check(field($form['elements'], 'SceneControlID')['type'] === 'Select', 'Scene Control must not use the failing object-tree picker');
+check(field($form['elements'], 'SceneControlID')['options'][1] === ['caption' => 'Beleuchtung (41254)', 'value' => 41254], 'Scene Control choices must identify existing controllers');
+$module->properties['SceneControlID'] = 1;
+$staleForm = json_decode($module->GetConfigurationForm(), true, 512, JSON_THROW_ON_ERROR);
+$controllerField = field($staleForm['elements'], 'SceneControlID');
+check($controllerField['options'][2]['value'] === 1 && $controllerField['options'][2]['enabled'] === false, 'Missing ID 1 must remain a disabled label without an object lookup');
+check($module->properties['SceneControlID'] === 1, 'Opening the form must not rewrite user properties');
+$rejected = false;
+try { $module->SelectSceneControl(1); } catch (InvalidArgumentException $exception) { $rejected = true; }
+check($rejected, 'Stale scene controller callbacks must be rejected');
+$module->SelectSceneControl(0);
+check($module->formUpdates['ActiveSceneID']['value'] === '0', 'Disabling Scene Control must clear the suggested scene variable');
+$module->SelectSceneControl(41254);
+check($module->formUpdates['ActiveSceneID']['value'] === '44543', 'Valid selection must recover from an invalid saved controller');
 
 $convert = new ReflectionMethod(DynamicLighting::class, 'ColorToInteger');
 foreach ([16711680, '#FF0000', '0xFF0000', 'FF0000', '16711680'] as $value) check($convert->invoke($module, $value) === 16711680, 'RGB input conversion');

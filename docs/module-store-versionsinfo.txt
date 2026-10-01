@@ -1,3 +1,7 @@
+Build 3 (2026-10-01)
+korrigiert: Scene Control über eine Liste vorhandener Instanzen auswählen; der fehlerhafte Baumdialog der Konsole wird umgangen.
+korrigiert: Ungültige gespeicherte Scene-Control-IDs werden als nicht verfügbar angezeigt und können neu zugeordnet werden.
+
 Build 2 (2026-10-01)
 geändert: Eine Leuchteninstanz auswählen und deren Lichtvariablen erkennen statt Kategorien durchsuchen.
 korrigiert: RGB-Farbe und Kelvin bevorzugen; alternative Farbvariablen und Mired-Profile werden nicht versehentlich verwendet.

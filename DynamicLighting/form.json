@@ -256,8 +256,10 @@
                          "caption": "Scene integration",
                          "items":  [ {"type":"Label","caption":"Ambient mode controls lights by lux and time. TV has priority and loads the selected TV scene; TV off resumes ambient mode. Other scenes pause ambient mode until Resume ambient control is pressed. Boolean triggers start their selected scene when true."},
                                        {
-                                           "type":  "SelectInstance",
+                                           "type":  "Select",
                                            "name":  "SceneControlID",
+                                           "value": 0,
+                                           "options": [],
                                            "caption": "Optional Scene Control instance", "onChange": "DLT_SelectSceneControl($id, $SceneControlID);"
                                        },
                                        {

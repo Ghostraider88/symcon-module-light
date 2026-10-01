@@ -11,6 +11,7 @@ class DynamicLighting extends IPSModuleStrict
     private const OFF = 1;
     private const MANUAL = 2;
     private const TV = 3;
+    private const SCENE_CONTROL_MODULE_ID = '{87F46796-CC43-442D-94FD-AAA0BD8D9F54}';
     private const PROFILE_SPRING = '{4AD0B7A1-5A2B-4E53-A261-11E8FC522101}';
     private const PROFILE_SUMMER = '{4AD0B7A1-5A2B-4E53-A261-11E8FC522102}';
     private const PROFILE_AUTUMN = '{4AD0B7A1-5A2B-4E53-A261-11E8FC522103}';
@@ -73,6 +74,7 @@ class DynamicLighting extends IPSModuleStrict
         $this->SetListColumnOptions($form['elements'], 'TargetProfiles', 'TargetName', $targetOptions);
         $this->SetListColumnOptions($form['elements'], 'TargetProfiles', 'ProfileID', $profileOptions);
         $this->SetFormField($form['elements'], 'TargetProfiles', 'values', $this->TargetProfiles());
+        $this->SetSelectOptions($form['elements'], 'SceneControlID', $this->SceneControlOptions());
         $sceneOptions = $this->SceneOptions($this->ReadPropertyInteger('SceneControlID'));
         $this->SetSelectOptions($form['elements'], 'OffScene', $sceneOptions);
         $this->SetSelectOptions($form['elements'], 'TVScene', $sceneOptions);
@@ -180,6 +182,9 @@ class DynamicLighting extends IPSModuleStrict
 
     public function SelectSceneControl(int $sceneControlID): void
     {
+        if ($sceneControlID !== 0 && !in_array($sceneControlID, IPS_GetInstanceListByModuleID(self::SCENE_CONTROL_MODULE_ID), true)) {
+            throw new InvalidArgumentException('Please select an existing Scene Control instance.');
+        }
         $options = $this->SceneOptions($sceneControlID);
         $this->UpdateFormField('OffScene', 'options', json_encode($options, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE));
         $this->UpdateFormField('TVScene', 'options', json_encode($options, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE));
@@ -203,6 +208,24 @@ class DynamicLighting extends IPSModuleStrict
             }
         }
         $this->UpdateFormField('ActiveSceneID', 'value', (string)$activeID);
+    }
+
+    private function SceneControlOptions(): array
+    {
+        $options = [['caption' => $this->Translate('No Scene Control'), 'value' => 0]];
+        $instanceIDs = IPS_GetInstanceListByModuleID(self::SCENE_CONTROL_MODULE_ID);
+        sort($instanceIDs);
+        foreach ($instanceIDs as $id) {
+            if (!IPS_InstanceExists($id)) continue;
+            $options[] = ['caption' => IPS_GetObject($id)['ObjectName'] . ' (' . $id . ')', 'value' => $id];
+        }
+        $configuredID = $this->ReadPropertyInteger('SceneControlID');
+        if ($configuredID !== 0 && !in_array($configuredID, array_column($options, 'value'), true)) {
+            // Keep a stale setting visible without handing its ID to an object-tree picker.
+            $options[] = ['caption' => sprintf($this->Translate('Unavailable Scene Control (%d) - select again'), $configuredID),
+                'value' => $configuredID, 'enabled' => false];
+        }
+        return $options;
     }
 
     private function SceneOptions(int $sceneControlID): array
