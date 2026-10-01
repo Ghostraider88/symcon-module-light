@@ -34,42 +34,59 @@
                                            "name":  "StartTime",
                                            "caption":  "Daily start time"
                                        },
-                                       {
-                                           "type":  "ValidationTextBox",
-                                           "name":  "EndTime",
-                                           "caption":  "Daily end time"
-                                       },
-                                       {
-                                           "type":  "Select",
-                                           "name":  "Season",
-                                           "caption":  "Seasonal profile",
-                                           "options":  [
-                                                           {
-                                                               "caption":  "Spring",
-                                                               "value":  "spring"
-                                                           },
-                                                           {
-                                                               "caption":  "Summer",
-                                                               "value":  "summer"
-                                                           },
-                                                           {
-                                                               "caption":  "Autumn",
-                                                               "value":  "autumn"
-                                                           },
-                                                           {
-                                                               "caption":  "Winter",
-                                                               "value":  "winter"
-                                                           }
-                                                       ]
-                                       }
+                                        {
+                                            "type":  "ValidationTextBox",
+                                            "name":  "EndTime",
+                                            "caption":  "Daily end time"
+                                        },
+                                        {
+                                            "type":  "Select",
+                                            "name":  "ActiveProfile",
+                                            "caption":  "Active light profile",
+                                            "options":  []
+                                        },
+                                        {
+                                            "type":  "List",
+                                            "name":  "Profiles",
+                                            "caption":  "User-defined profiles",
+                                            "add":  true,
+                                            "delete":  true,
+                                            "onDelete":  "DLT_DeleteProfile($id, $Profiles['Name']);",
+                                            "rowCount":  5,
+                                            "columns":  [
+                                                            {
+                                                                "name":  "Name",
+                                                                "caption":  "Profile name",
+                                                                "width":  "auto",
+                                                                "add":  "",
+                                                                "edit":  { "type":  "ValidationTextBox" }
+                                                            }
+                                                        ],
+                                            "values":  []
+                                        },
+                                        {
+                                            "type":  "Label",
+                                            "name":  "ProfileHelp",
+                                            "caption":  "Create, edit, and delete profiles here. Each light can have separate values for every profile."
+                                        }
                                    ]
                      },
-                     {
-                         "type":  "ExpansionPanel",
-                         "caption":  "Light targets",
-                         "items":  [
-                                       {
-                                           "type":  "List",
+                      {
+                          "type":  "ExpansionPanel",
+                          "caption":  "Light targets",
+                          "items":  [
+                                        {
+                                            "type":  "SelectCategory",
+                                            "name":  "DiscoveryCategoryID",
+                                            "caption":  "Room or area to scan"
+                                        },
+                                        {
+                                            "type":  "Label",
+                                            "name":  "DiscoveryStatus",
+                                            "caption":  "Choose a category and use Find light variables."
+                                        },
+                                        {
+                                            "type":  "List",
                                            "name":  "Targets",
                                            "caption":  "Configured lights",
                                            "add":  true,
@@ -167,80 +184,88 @@
                                                                             "requiredAction":  1
                                                                         }
                                                            },
-                                                           {
-                                                               "name":  "SpringColor",
-                                                               "add":  0,
-                                                               "caption":  "Spring color",
+                                                            {
+                                                                "name":  "SpringColor",
+                                                                "add":  0,
+                                                                "caption":  "Spring color",
+                                                                "visible":  false,
                                                                "width":  "auto",
                                                                "edit":  {
                                                                             "type":  "NumberSpinner",
                                                                             "minimum":  0
                                                                         }
                                                            },
-                                                           {
-                                                               "name":  "SummerColor",
-                                                               "add":  0,
-                                                               "caption":  "Summer color",
+                                                            {
+                                                                "name":  "SummerColor",
+                                                                "add":  0,
+                                                                "caption":  "Summer color",
+                                                                "visible":  false,
                                                                "width":  "auto",
                                                                "edit":  {
                                                                             "type":  "NumberSpinner",
                                                                             "minimum":  0
                                                                         }
                                                            },
-                                                           {
-                                                               "name":  "AutumnColor",
-                                                               "add":  0,
-                                                               "caption":  "Autumn color",
+                                                            {
+                                                                "name":  "AutumnColor",
+                                                                "add":  0,
+                                                                "caption":  "Autumn color",
+                                                                "visible":  false,
                                                                "width":  "auto",
                                                                "edit":  {
                                                                             "type":  "NumberSpinner",
                                                                             "minimum":  0
                                                                         }
                                                            },
-                                                           {
-                                                               "name":  "WinterColor",
-                                                               "add":  0,
-                                                               "caption":  "Winter color",
+                                                            {
+                                                                "name":  "WinterColor",
+                                                                "add":  0,
+                                                                "caption":  "Winter color",
+                                                                "visible":  false,
                                                                "width":  "auto",
                                                                "edit":  {
                                                                             "type":  "NumberSpinner",
                                                                             "minimum":  0
                                                                         }
                                                            },
-                                                           {
-                                                               "name":  "SpringTemperature",
-                                                               "add":  0,
-                                                               "caption":  "Spring K",
+                                                            {
+                                                                "name":  "SpringTemperature",
+                                                                "add":  0,
+                                                                "caption":  "Spring K",
+                                                                "visible":  false,
                                                                "width":  "auto",
                                                                "edit":  {
                                                                             "type":  "NumberSpinner",
                                                                             "minimum":  0
                                                                         }
                                                            },
-                                                           {
-                                                               "name":  "SummerTemperature",
-                                                               "add":  0,
-                                                               "caption":  "Summer K",
+                                                            {
+                                                                "name":  "SummerTemperature",
+                                                                "add":  0,
+                                                                "caption":  "Summer K",
+                                                                "visible":  false,
                                                                "width":  "auto",
                                                                "edit":  {
                                                                             "type":  "NumberSpinner",
                                                                             "minimum":  0
                                                                         }
                                                            },
-                                                           {
-                                                               "name":  "AutumnTemperature",
-                                                               "add":  0,
-                                                               "caption":  "Autumn K",
+                                                            {
+                                                                "name":  "AutumnTemperature",
+                                                                "add":  0,
+                                                                "caption":  "Autumn K",
+                                                                "visible":  false,
                                                                "width":  "auto",
                                                                "edit":  {
                                                                             "type":  "NumberSpinner",
                                                                             "minimum":  0
                                                                         }
                                                            },
-                                                           {
-                                                               "name":  "WinterTemperature",
-                                                               "add":  0,
-                                                               "caption":  "Winter K",
+                                                            {
+                                                                "name":  "WinterTemperature",
+                                                                "add":  0,
+                                                                "caption":  "Winter K",
+                                                                "visible":  false,
                                                                "width":  "auto",
                                                                "edit":  {
                                                                             "type":  "NumberSpinner",
@@ -248,9 +273,56 @@
                                                                         }
                                                            }
                                                        ],
-                                           "values":  [
+                                   "values":  [
 
-                                                      ]
+                                              ]
+                                       },
+                                        {
+                                            "type":  "List",
+                                            "name":  "TargetProfiles",
+                                            "caption":  "Profile settings by light",
+                                            "add":  true,
+                                            "delete":  true,
+                                            "rowCount":  8,
+                                            "columns":  [
+                                                            {
+                                                                "name":  "TargetName",
+                                                                "caption":  "Light",
+                                                                "width":  "auto",
+                                                                "add":  "",
+                                                                "edit":  { "type":  "Select", "options":  [] }
+                                                            },
+                                                            {
+                                                                "name":  "ProfileName",
+                                                                "caption":  "Profile",
+                                                                "width":  "auto",
+                                                                "add":  "",
+                                                                "edit":  { "type":  "Select", "options":  [] }
+                                                            },
+                                                            {
+                                                                "name":  "ColorValue",
+                                                                "caption":  "Color",
+                                                                "width":  "100px",
+                                                                "add":  -1,
+                                                                "edit":  { "type":  "SelectColor", "allowTransparent":  true }
+                                                            },
+                                                            {
+                                                                "name":  "Temperature",
+                                                                "caption":  "Kelvin",
+                                                                "width":  "100px",
+                                                                "add":  0,
+                                                                "edit":  { "type":  "NumberSpinner", "minimum":  0, "maximum":  10000 }
+                                                            },
+                                                            {
+                                                                "name":  "Capture",
+                                                                "caption":  "Take over current color",
+                                                                "width":  "150px",
+                                                                "add":  "Übernehmen",
+                                                                "save":  false,
+                                                                "onClick":  "DLT_CaptureCurrentColor($id, $TargetProfiles['TargetName'], $TargetProfiles['ProfileName']);"
+                                                            }
+                                                        ],
+                                            "values":  []
                                        }
                                    ]
                      },
@@ -336,6 +408,11 @@
                         "type":  "Button",
                         "caption":  "Evaluate now",
                         "onClick":  "DLT_EvaluateAndRefresh($id);"
+                    },
+                    {
+                        "type":  "Button",
+                        "caption":  "Find light variables",
+                        "onClick":  "DLT_DiscoverLights($id);"
                     }
                 ],
     "status":  [

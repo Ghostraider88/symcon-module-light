@@ -22,6 +22,16 @@ class DynamicLighting extends IPSModuleStrict
         $this->RegisterPropertyInteger('DarkLux', 2500);
         $this->RegisterPropertyString('StartTime', '16:00');
         $this->RegisterPropertyString('EndTime', '23:00');
+        $this->RegisterPropertyInteger('DiscoveryCategoryID', 0);
+        $this->RegisterPropertyString('Profiles', json_encode([
+            ['Name' => 'Frühling'],
+            ['Name' => 'Sommer'],
+            ['Name' => 'Herbst'],
+            ['Name' => 'Winter']
+        ], JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE));
+        $this->RegisterPropertyString('ActiveProfile', 'Winter');
+        $this->RegisterPropertyString('TargetProfiles', '[]');
+        // Kept for existing configurations; new configurations use Profiles and TargetProfiles.
         $this->RegisterPropertyString('Season', 'winter');
         $this->RegisterPropertyString('Targets', '[]');
         $this->RegisterPropertyInteger('SceneControlID', 0);
@@ -31,6 +41,145 @@ class DynamicLighting extends IPSModuleStrict
         $this->RegisterPropertyInteger('TVScene', 5);
         $this->RegisterPropertyString('SceneTriggers', '[]');
         $this->RegisterTimer('EvaluateTimer', 0, 'DLT_EvaluateAndRefresh($_IPS[\'TARGET\']);');
+    }
+
+    public function GetConfigurationForm(): string
+    {
+        $form = json_decode(parent::GetConfigurationForm(), true, 512, JSON_THROW_ON_ERROR);
+        $profiles = $this->Profiles();
+        $profileOptions = [];
+        foreach ($profiles as $profile) {
+            $name = trim((string)($profile['Name'] ?? ''));
+            if ($name !== '') {
+                $profileOptions[] = ['caption' => $name, 'value' => $name];
+            }
+        }
+        if ($profileOptions === []) {
+            $profileOptions[] = ['caption' => $this->Translate('Create a profile first'), 'value' => ''];
+        }
+        $targetOptions = [];
+        foreach ($this->Targets() as $target) {
+            $name = trim((string)($target['Name'] ?? ''));
+            if ($name !== '') {
+                $targetOptions[] = ['caption' => $name, 'value' => $name];
+            }
+        }
+        $this->SetSelectOptions($form['elements'], 'ActiveProfile', $profileOptions);
+        $this->SetListColumnOptions($form['elements'], 'TargetProfiles', 'TargetName', $targetOptions);
+        $this->SetListColumnOptions($form['elements'], 'TargetProfiles', 'ProfileName', $profileOptions);
+        return json_encode($form, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+    }
+
+    public function DiscoverLights(): void
+    {
+        $categoryID = $this->ReadPropertyInteger('DiscoveryCategoryID');
+        if ($categoryID <= 0 || !IPS_CategoryExists($categoryID)) {
+            $this->UpdateFormField('DiscoveryStatus', 'caption', $this->Translate('Choose a category to search.'));
+            return;
+        }
+
+        $discovered = [];
+        $luxCandidates = [];
+        $this->ScanCategory($categoryID, $discovered, $luxCandidates, 0);
+        $existing = $this->Targets();
+        $merged = [];
+        foreach ($discovered as $candidate) {
+            $key = (int)($candidate['SwitchID'] ?? 0) ?: ((int)($candidate['BrightnessID'] ?? 0) ?: (int)($candidate['ColorID'] ?? 0));
+            $found = null;
+            foreach ($existing as $index => $target) {
+                $targetKey = (int)($target['SwitchID'] ?? 0) ?: ((int)($target['BrightnessID'] ?? 0) ?: (int)($target['ColorID'] ?? 0));
+                if ($key > 0 && $targetKey === $key) {
+                    $found = $target;
+                    unset($existing[$index]);
+                    break;
+                }
+            }
+            $merged[] = $found === null ? $candidate : array_replace($candidate, $found);
+        }
+        foreach ($existing as $target) {
+            $merged[] = $target;
+        }
+        $this->UpdateFormField('Targets', 'values', json_encode($merged, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE));
+        if ($this->ReadPropertyInteger('LuxVariableID') <= 0 && count($luxCandidates) === 1) {
+            $this->UpdateFormField('LuxVariableID', 'value', (string)$luxCandidates[0]);
+        }
+        $message = sprintf($this->Translate('Found %d light candidates and %d illuminance candidates.'), count($discovered), count($luxCandidates));
+        if (count($luxCandidates) > 1) {
+            $message .= ' ' . $this->Translate('Select the correct illuminance variable above.');
+        }
+        $this->UpdateFormField('DiscoveryStatus', 'caption', $message);
+    }
+
+    public function CaptureCurrentColor(string $targetName, string $profileName): void
+    {
+        $target = null;
+        foreach ($this->Targets() as $candidate) {
+            if ((string)($candidate['Name'] ?? '') === $targetName) {
+                $target = $candidate;
+                break;
+            }
+        }
+        $colorID = (int)($target['ColorID'] ?? 0);
+        if ($colorID <= 0 || !IPS_VariableExists($colorID)) {
+            $this->UpdateFormField('DiscoveryStatus', 'caption', $this->Translate('The selected light has no color variable.'));
+            return;
+        }
+        $color = (int)GetValue($colorID);
+        $colorValue = sprintf('#%06X', max(0, min(0xFFFFFF, $color)));
+        $settings = $this->TargetProfiles();
+        $updated = false;
+        foreach ($settings as &$setting) {
+            if ((string)($setting['TargetName'] ?? '') === $targetName && (string)($setting['ProfileName'] ?? '') === $profileName) {
+                $setting['ColorValue'] = $colorValue;
+                $updated = true;
+                break;
+            }
+        }
+        unset($setting);
+        if (!$updated) {
+            $settings[] = [
+                'TargetName' => $targetName,
+                'ProfileName' => $profileName,
+                'ColorValue' => $colorValue,
+                'Temperature' => 0,
+                'Capture' => 'Übernehmen'
+            ];
+        }
+        foreach ($settings as &$setting) {
+            $setting['Capture'] = 'Übernehmen';
+        }
+        unset($setting);
+        $this->UpdateFormField('TargetProfiles', 'values', json_encode($settings, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE));
+        $this->UpdateFormField('DiscoveryStatus', 'caption', sprintf($this->Translate('Captured current color for %s / %s.'), $targetName, $profileName));
+    }
+
+    public function DeleteProfile(string $profileName): void
+    {
+        $settings = array_values(array_filter(
+            $this->TargetProfiles(),
+            static fn (array $setting): bool => (string)($setting['ProfileName'] ?? '') !== $profileName
+        ));
+        foreach ($settings as &$setting) {
+            $setting['Capture'] = 'Übernehmen';
+        }
+        unset($setting);
+        $this->UpdateFormField('TargetProfiles', 'values', json_encode($settings, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE));
+
+        $remainingProfiles = array_values(array_filter(
+            $this->Profiles(),
+            static fn (array $profile): bool => (string)($profile['Name'] ?? '') !== $profileName
+        ));
+        $options = [];
+        foreach ($remainingProfiles as $profile) {
+            $name = trim((string)($profile['Name'] ?? ''));
+            if ($name !== '') {
+                $options[] = ['caption' => $name, 'value' => $name];
+            }
+        }
+        $this->UpdateFormField('ActiveProfile', 'options', json_encode($options, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE));
+        if ($this->ReadPropertyString('ActiveProfile') === $profileName) {
+            $this->UpdateFormField('ActiveProfile', 'value', (string)($options[0]['value'] ?? ''));
+        }
     }
 
     public function ApplyChanges(): void
@@ -193,7 +342,7 @@ class DynamicLighting extends IPSModuleStrict
     private function ApplyTargets(int $percent): void
     {
         $this->SetBuffer('OutputOff', '0');
-        $season = ucfirst($this->ReadPropertyString('Season'));
+        $profileName = $this->ReadPropertyString('ActiveProfile');
         foreach ($this->Targets() as $target) {
             $maximum = max(1, min(100, (int)($target['MaxBrightness'] ?? 100)));
             $minimum = max(0, min($maximum, (int)($target['MinBrightness'] ?? 0)));
@@ -207,10 +356,20 @@ class DynamicLighting extends IPSModuleStrict
             if ($id > 0 && IPS_VariableExists($id)) RequestAction($id, $brightness > 0);
             if ($brightness === 0) continue;
             $id = (int)($target['ColorID'] ?? 0);
-            $color = (int)($target[$season . 'Color'] ?? 0);
-            if ($id > 0 && $color > 0 && IPS_VariableExists($id)) RequestAction($id, $color);
+            $settings = $this->TargetProfile($target, $profileName);
+            $colorValue = $settings['ColorValue'] ?? null;
+            if ($colorValue === null || $colorValue === '' || $colorValue === -1) {
+                $legacySeason = $this->LegacySeasonName($profileName);
+                $colorValue = $legacySeason === '' ? null : ($target[$legacySeason . 'Color'] ?? null);
+            }
+            $color = $this->ColorToInteger($colorValue);
+            if ($id > 0 && $color !== null && IPS_VariableExists($id)) RequestAction($id, $color);
             $id = (int)($target['TemperatureID'] ?? 0);
-            $temperature = (int)($target[$season . 'Temperature'] ?? 0);
+            $temperature = (int)($settings['Temperature'] ?? 0);
+            if ($temperature <= 0) {
+                $legacySeason = $this->LegacySeasonName($profileName);
+                $temperature = $legacySeason === '' ? 0 : (int)($target[$legacySeason . 'Temperature'] ?? 0);
+            }
             if ($id > 0 && $temperature > 0 && IPS_VariableExists($id)) RequestAction($id, $temperature);
         }
     }
@@ -279,7 +438,8 @@ class DynamicLighting extends IPSModuleStrict
             || !$this->VariableHasType($lux, [1, 2])
             || $this->ReadPropertyInteger('BrightLux') < 0
             || $this->ReadPropertyInteger('DarkLux') <= $this->ReadPropertyInteger('BrightLux')
-            || !in_array($this->ReadPropertyString('Season'), ['spring', 'summer', 'autumn', 'winter'], true)
+            || $this->Profiles() === []
+            || !in_array($this->ReadPropertyString('ActiveProfile'), array_column($this->Profiles(), 'Name'), true)
             || $this->ParseTime($this->ReadPropertyString('StartTime')) === null
             || $this->ParseTime($this->ReadPropertyString('EndTime')) === null) {
             return false;
@@ -340,6 +500,168 @@ class DynamicLighting extends IPSModuleStrict
         }
         $variable = IPS_GetVariable($id);
         return in_array((int)$variable['VariableType'], $types, true);
+    }
+
+    private function SetSelectOptions(array &$elements, string $name, array $options): void
+    {
+        foreach ($elements as &$element) {
+            if (($element['name'] ?? '') === $name) {
+                $element['options'] = $options;
+            }
+            if (isset($element['items']) && is_array($element['items'])) {
+                $this->SetSelectOptions($element['items'], $name, $options);
+            }
+        }
+        unset($element);
+    }
+
+    private function SetListColumnOptions(array &$elements, string $listName, string $columnName, array $options): void
+    {
+        foreach ($elements as &$element) {
+            if (($element['name'] ?? '') === $listName && isset($element['columns']) && is_array($element['columns'])) {
+                foreach ($element['columns'] as &$column) {
+                    if (($column['name'] ?? '') === $columnName) {
+                        $column['edit']['options'] = $options;
+                    }
+                }
+                unset($column);
+            }
+            if (isset($element['items']) && is_array($element['items'])) {
+                $this->SetListColumnOptions($element['items'], $listName, $columnName, $options);
+            }
+        }
+        unset($element);
+    }
+
+    private function ScanCategory(int $categoryID, array &$targets, array &$luxCandidates, int $depth): void
+    {
+        if ($depth > 20) {
+            return;
+        }
+        foreach (IPS_GetChildrenIDs($categoryID) as $childID) {
+            $object = IPS_GetObject($childID);
+            if ($object['ObjectType'] === 0) {
+                $this->ScanCategory($childID, $targets, $luxCandidates, $depth + 1);
+                continue;
+            }
+            if ($object['ObjectType'] === 2) {
+                $this->CollectIlluminanceCandidate($childID, $object, $luxCandidates);
+                continue;
+            }
+            if ($object['ObjectType'] !== 1) {
+                continue;
+            }
+
+            $candidate = [
+                'Name' => $object['ObjectName'],
+                'SwitchID' => 0,
+                'BrightnessID' => 0,
+                'BrightnessScale' => 100,
+                'MaxBrightness' => 100,
+                'MinBrightness' => 0,
+                'ColorID' => 0,
+                'TemperatureID' => 0
+            ];
+            foreach (IPS_GetChildrenIDs($childID) as $variableID) {
+                $variableObject = IPS_GetObject($variableID);
+                if ($variableObject['ObjectType'] !== 2) {
+                    continue;
+                }
+                $variable = IPS_GetVariable($variableID);
+                if ($variableObject['ObjectIsHidden']) {
+                    continue;
+                }
+                $this->CollectIlluminanceCandidate($variableID, $variableObject, $luxCandidates);
+                if ((int)($variable['VariableAction'] ?? 0) <= 0 && (int)($variable['VariableCustomAction'] ?? 0) <= 0) {
+                    continue;
+                }
+                $profile = strtolower((string)($variable['VariableProfile'] ?? $variable['VariableCustomProfile'] ?? ''));
+                $name = strtolower((string)$variableObject['ObjectName']);
+                $type = (int)$variable['VariableType'];
+                if ($type === 0 && (str_contains($profile, 'switch') || preg_match('/status|switch|power|ein|aus/', $name) === 1)) {
+                    $candidate['SwitchID'] = $variableID;
+                } elseif ($type !== 0 && (str_contains($profile, 'twcolor') || str_contains($profile, 'color_temp') || str_contains($name, 'farbtemperatur') || str_contains($name, 'kelvin'))) {
+                    $candidate['TemperatureID'] = $variableID;
+                } elseif ($type !== 0 && (str_contains($profile, 'hexcolor') || str_contains($name, 'farbe') || str_contains($name, 'color'))) {
+                    $candidate['ColorID'] = $variableID;
+                } elseif ($type !== 0 && (str_contains($profile, 'intensity') || str_contains($name, 'helligkeit') || str_contains($name, 'brightness') || str_contains($name, 'intensit'))) {
+                    $candidate['BrightnessID'] = $variableID;
+                    if (str_contains($profile, '.255')) {
+                        $candidate['BrightnessScale'] = 255;
+                    }
+                }
+            }
+            if ($candidate['SwitchID'] > 0 || $candidate['BrightnessID'] > 0 || $candidate['ColorID'] > 0 || $candidate['TemperatureID'] > 0) {
+                $targets[] = $candidate;
+            }
+        }
+    }
+
+    private function CollectIlluminanceCandidate(int $variableID, array $object, array &$luxCandidates): void
+    {
+        if ($object['ObjectIsHidden']) {
+            return;
+        }
+        $variable = IPS_GetVariable($variableID);
+        if (!in_array((int)$variable['VariableType'], [1, 2], true)) {
+            return;
+        }
+        $name = strtolower((string)$object['ObjectName']);
+        $profile = strtolower((string)($variable['VariableProfile'] ?? $variable['VariableCustomProfile'] ?? ''));
+        if (str_contains($name, 'lux') || str_contains($name, 'illuminance') || str_contains($name, 'beleuchtungsstärke') || str_contains($profile, 'illuminance') || (str_contains($name, 'helligkeit') && !str_contains($profile, 'intensity'))) {
+            if (!in_array($variableID, $luxCandidates, true)) {
+                $luxCandidates[] = $variableID;
+            }
+        }
+    }
+
+    private function Profiles(): array
+    {
+        $rows = json_decode($this->ReadPropertyString('Profiles'), true);
+        return is_array($rows) ? array_values(array_filter($rows, static fn (mixed $row): bool => is_array($row) && trim((string)($row['Name'] ?? '')) !== '')) : [];
+    }
+
+    private function TargetProfiles(): array
+    {
+        $rows = json_decode($this->ReadPropertyString('TargetProfiles'), true);
+        return is_array($rows) ? $rows : [];
+    }
+
+    private function TargetProfile(array $target, string $profileName): array
+    {
+        foreach ($this->TargetProfiles() as $setting) {
+            if ((string)($setting['TargetName'] ?? '') === (string)($target['Name'] ?? '')
+                && (string)($setting['ProfileName'] ?? '') === $profileName) {
+                return $setting;
+            }
+        }
+        return [];
+    }
+
+    private function ColorToInteger(mixed $value): ?int
+    {
+        if (is_int($value) || is_float($value)) {
+            return max(0, min(0xFFFFFF, (int)$value));
+        }
+        if (!is_string($value) || trim($value) === '') {
+            return null;
+        }
+        $value = ltrim(trim($value), '#');
+        if (str_starts_with(strtolower($value), '0x')) {
+            $value = substr($value, 2);
+        }
+        return ctype_xdigit($value) ? (int)hexdec($value) : null;
+    }
+
+    private function LegacySeasonName(string $profileName): string
+    {
+        return match ($profileName) {
+            'Frühling', 'Spring' => 'Spring',
+            'Sommer', 'Summer' => 'Summer',
+            'Herbst', 'Autumn' => 'Autumn',
+            'Winter' => 'Winter',
+            default => ''
+        };
     }
     private function Targets(): array
     {
