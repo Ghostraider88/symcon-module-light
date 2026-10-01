@@ -1,0 +1,278 @@
+## Bereits vorhandene Komfortfunktionen
+
+  ### T300
+
+   Funktion                   Status       Aktuelles Verhalten
+  ━━━━━━━━━━━━━━━━━━━━━━━━━  ━━━━━━━━━━━  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   Tag-/Nachtbetrieb          vorhanden    Tag-Sollwert ca. 40 °C, Nacht-Sollwert ca. 25 °C
+  ─────────────────────────  ───────────  ──────────────────────────────────────────────────
+   Automatikbetrieb           vorhanden    Steuerung nur bei aktivierter Automatik
+  ─────────────────────────  ───────────  ──────────────────────────────────────────────────
+   Duschboost                 vorhanden    erhöhte Warmwassertemperatur, derzeit ca. 55 °C
+  ─────────────────────────  ───────────  ──────────────────────────────────────────────────
+   Badeboost                  vorhanden    gleiche Prioritätsstufe wie Duschboost
+  ─────────────────────────  ───────────  ──────────────────────────────────────────────────
+   PV-Warmwasserbetrieb       vorhanden    bei PV-/WP-Freigabe erhöhter Sollwert
+  ─────────────────────────  ───────────  ──────────────────────────────────────────────────
+   Elektroheizungsfreigabe    vorhanden    bei bestimmten Anforderungen zuschaltbar
+  ─────────────────────────  ───────────  ──────────────────────────────────────────────────
+   Nachtabsenkung             vorhanden    eigener Nachtmodus
+  ─────────────────────────  ───────────  ──────────────────────────────────────────────────
+   Prioritätssteuerung        vorhanden    Dusche/Bad → PV → Tag → Nacht
+  ─────────────────────────  ───────────  ──────────────────────────────────────────────────
+   Zeitgesteuerte Prüfung     vorhanden    zyklische Prüfung und Ereignisauslösung
+
+  Die T300-Steuerung bietet damit bereits einen guten Grundkomfort. Das Hauptproblem ist momentan nicht der Funktionsumfang, sondern dass mindestens zwei Logiken teilweise gleichzeitig den
+  Sollwert schreiben. Diese müssen später im Modul zu einer einzigen Prioritätssteuerung zusammengeführt werden.
+
+  ### FWT
+
+   Funktion                    Status                 Aktuelles Verhalten
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━  ━━━━━━━━━━━━━━━━━━━━━  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   Sommer-/Winterbetrieb       vorhanden              Betriebsart und Lüftersteuerung werden angepasst
+  ──────────────────────────  ─────────────────────  ────────────────────────────────────────────────────────────────────────────────
+   Manuelle Betriebsart        vorhanden              manuelle Auswahl möglich
+  ──────────────────────────  ─────────────────────  ────────────────────────────────────────────────────────────────────────────────
+   Automatische Lüfterstufe    vorhanden              abhängig von Betriebsart, Temperatur und Heiz-/Kühlstatus
+  ──────────────────────────  ─────────────────────  ────────────────────────────────────────────────────────────────────────────────
+   Kühlbedarf                  vorhanden              Kühlanforderung wird berechnet
+  ──────────────────────────  ─────────────────────  ────────────────────────────────────────────────────────────────────────────────
+   Kühlfunktion                vorhanden              separate Logik für Kühlbetrieb
+  ──────────────────────────  ─────────────────────  ────────────────────────────────────────────────────────────────────────────────
+   Intensivlüftung             vorhanden              eigene Funktion mit Laufzeit und Timer
+  ──────────────────────────  ─────────────────────  ────────────────────────────────────────────────────────────────────────────────
+   Intensivlüftung beenden     vorhanden              Rückkehr zur vorherigen Betriebsart vorgesehen
+  ──────────────────────────  ─────────────────────  ────────────────────────────────────────────────────────────────────────────────
+   Filterlaufzeit              vorhanden              Betriebs- und Filterdaten werden bereits ausgelesen
+  ──────────────────────────  ─────────────────────  ────────────────────────────────────────────────────────────────────────────────
+   Raum-/Zonenwerte            teilweise vorhanden    Werte und Sollwerte sind vorhanden, aber noch nicht vollständig komfortgeführt
+  ──────────────────────────  ─────────────────────  ────────────────────────────────────────────────────────────────────────────────
+   Zeitprogramm                teilweise vorhanden    Gerätewerte sind verfügbar, eine komfortable Benutzerlogik fehlt noch
+
+  Die FWT besitzt bereits mehrere Komfortbausteine. Besonders die Intensivlüftung und die saisonabhängige Lüftersteuerung sind gute Grundlagen für ein späteres Modul.
+
+  ———
+
+  ## Komfortfunktionen, die ich zusätzlich einbauen würde
+
+  ### Priorität 1: direkt sinnvoll
+
+  #### 1. Einheitlicher Betriebsmodus
+
+  Eine zentrale Auswahl:
+
+  - Automatik
+  - Tag
+  - Nacht
+  - Abwesend
+  - Urlaub
+  - Manuell
+  - Intensivlüftung
+  - Ruhemodus
+  - Störung
+
+  Alle anderen Funktionen greifen auf diesen zentralen Modus zurück. Dadurch entstehen keine widersprüchlichen Einzelentscheidungen.
+
+  #### 2. Manuelle Übersteuerung mit Ablaufzeit
+
+  Beispiel:
+
+  Manuell 2 Stunden aktiv
+  danach automatisch zurück in Automatik
+
+  Das ist für Duschboost, Intensivlüftung, erhöhten Warmwasserbedarf und temporäre Kühlung sehr praktisch.
+
+  #### 3. Automatische Rückkehr nach Dusch-/Badeboost
+
+  Nach dem Boost sollte das System nicht nur zeitgesteuert, sondern zustandsabhängig zurückschalten:
+
+  - Duschboost beendet
+  - Solltemperatur wieder normal
+  - Elektroheizung aus
+  - Mindestlaufzeit beachten
+  - Rückkehr in vorherigen Modus
+
+  #### 4. Urlaub- und Abwesenheitsmodus
+
+  Für T300:
+
+  - reduzierter Warmwasser-Sollwert
+  - optional keine Elektroheizung
+  - Legionellenprogramm weiterhin berücksichtigen
+  - automatischer Rückkehrtermin
+
+  Für FWT:
+
+  - reduzierte Lüfterstufe
+  - keine Intensivlüftung
+  - optional reduzierte Raumtemperatur
+  - Frostschutz bleibt aktiv
+
+  #### 5. Ruhemodus
+
+  Der Ruhemodus sollte:
+
+  - Lüfterdrehzahl begrenzen
+  - unnötige Boosts verhindern
+  - Zeitfenster berücksichtigen
+  - optional nachts automatisch aktiv werden
+
+  ———
+
+  ### Priorität 2: hoher Komfortgewinn
+
+  #### 6. Feuchte- und CO₂-geführte Lüftung
+
+  Die FWT-Register enthalten bereits Hinweise auf RH-/CO₂-Funktionen. Falls passende Sensoren vorhanden sind, könnte die Lüfterstufe automatisch anhand der Raumluft geregelt werden:
+
+  normale Luftqualität → niedrige Stufe
+  erhöhte Luftfeuchte → höhere Stufe
+  hohes CO₂ → Intensivlüftung
+  Werte wieder normal → langsame Rückkehr
+
+  Wichtig ist eine Rückkehrverzögerung, damit die Lüfterstufe nicht ständig springt.
+
+  #### 7. Fenster-offen-Erkennung
+
+  Wenn Fensterkontakte oder starke Temperaturänderungen verfügbar sind:
+
+  - Lüftung oder Heizung zeitweise reduzieren
+  - Warmwassersteuerung nicht beeinflussen
+  - nach Schließen zeitverzögert zurückkehren
+  - Meldung bei dauerhaft geöffnetem Fenster
+
+  #### 8. Sommerliche Nachtkühlung
+
+  Wenn:
+
+  - Außenluft kühler als Innenluft ist,
+  - kein Heizbedarf besteht,
+  - keine hohe Luftfeuchte vorliegt,
+
+  kann automatisch stärker gelüftet und der Bypass genutzt werden.
+
+  #### 9. Raum- und Zonenpriorisierung
+
+  Bei mehreren Zonen:
+
+  - Zone mit höchstem Bedarf bevorzugen
+  - ungenutzte Zonen reduzieren
+  - Büro-, Schlaf- oder Wohnbereich unterschiedlich behandeln
+  - Mindestkomfort für wichtige Räume sicherstellen
+
+  #### 10. Komfortband statt fester Einzelwerte
+
+  Statt ständig auf einen festen Sollwert zu regeln:
+
+  Komfortbereich: 20,5–21,5 °C
+
+  Das reduziert unnötige Stellvorgänge und verhindert ständiges Nachregeln.
+
+  ———
+
+  ### Priorität 3: intelligente Optimierung
+
+  #### 11. Adaptive Nachtabsenkung
+
+  Die Nachtabsenkung könnte berücksichtigen:
+
+  - Außentemperatur
+  - aktuelle Raumtemperatur
+  - Tageszeit
+  - Heiz-/Kühlbedarf
+  - thermische Trägheit des Gebäudes
+
+  Bei sehr kalten Außentemperaturen würde die Absenkung automatisch geringer ausfallen.
+
+  #### 12. Vorheizen und Vorkühlen
+
+  Das System startet abhängig von der benötigten Aufheizzeit früher:
+
+  gewünschter Komfort ab 07:00 Uhr
+  → Vorheizen beginnt beispielsweise um 06:20 Uhr
+
+  Dafür werden historische Temperaturverläufe benötigt.
+
+  #### 13. PV-optimierter Komfortbetrieb
+
+  Die bestehende PV-Funktion könnte erweitert werden:
+
+  - Warmwasser gezielt bei PV-Überschuss erhöhen
+  - Lüftung bei PV-Überschuss intensivieren
+  - Elektroheizung nur bei ausreichender PV-Leistung freigeben
+  - Komfortgrenzen einhalten
+  - keine unnötigen Boosts bei kurzfristigen PV-Spitzen
+
+  #### 14. Wetterabhängige Regelung
+
+  Mit Außentemperatur und Wetterprognose:
+
+  - bevorstehende Hitze erkennen
+  - frühzeitig vorkühlen
+  - bei Kälteeinbruch Nachtabsenkung reduzieren
+  - Lüftungsstrategie anpassen
+  - PV-Erwartung berücksichtigen
+
+  #### 15. Lernende Komfortprofile
+
+  Das Modul könnte erkennen:
+
+  - wann geduscht oder gebadet wird
+  - wann Räume typischerweise genutzt werden
+  - wann Intensivlüftung benötigt wird
+  - wie schnell sich das Warmwasser wieder erwärmt
+
+  Daraus könnten Vorschläge entstehen, ohne zunächst automatisch die Steuerung zu verändern.
+
+  ———
+
+  ## Funktionen, die ich nicht automatisch aktivieren würde
+
+  Diese Funktionen sind sinnvoll, sollten aber bewusst konfiguriert werden:
+
+  - wetterabhängige Vorhersagelogik
+  - lernende Zeitpläne
+  - automatische Änderungen an Warmwasser-Sollwerten
+  - automatische Elektroheizungsfreigabe
+  - aggressive Sommer-Nachtkühlung
+  - CO₂-/Feuchte-Boost ohne geprüfte Sensorwerte
+  - automatische Abschaltung bei angenommenem Fenster-offen-Zustand
+
+  Hier sollte es immer eine Option geben:
+
+  Nur beobachten
+  Vorschlag anzeigen
+  Automatisch ausführen
+
+  ———
+
+  ## Wichtigste Komfortbausteine für Version 1
+
+  Für die erste stabile Modulversion würde ich priorisieren:
+
+  1. zentrale Betriebsartenverwaltung
+  2. Dusch-/Badeboost mit sauberer Rückkehr
+  3. manuelle Übersteuerung mit Timer
+  4. Urlaub- und Abwesenheitsmodus
+  5. Ruhemodus
+  6. Intensivlüftung mit Rückkehrlogik
+  7. einheitliche Tag-/Nachtsteuerung
+  8. PV-Komfortbetrieb
+  9. zentrale Anzeige des aktuellen Regelgrundes
+  10. Sperre gegen konkurrierende Schreiblogiken
+
+  ## Später nachrüsten
+
+  Danach:
+
+  - CO₂-/Feuchte-Regelung
+  - Fenster-offen-Erkennung
+  - Sommer-Nachtkühlung
+  - Zonenpriorisierung
+  - adaptive Nachtabsenkung
+  - Vorheizen und Vorkühlen
+  - Wetter- und PV-Prognose
+  - lernende Komfortprofile
+
+  Der größte kurzfristige Mehrwert liegt nicht in möglichst vielen neuen Funktionen, sondern in einer zentralen Komfort- und Prioritätssteuerung. Dadurch werden die bereits vorhandenen
+  Funktionen stabil, nachvollziehbar und beliebig erweiterbar.

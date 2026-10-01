@@ -1,0 +1,461 @@
+Du agierst als **Lead Software Architect und Technical Product Architect** für ein neues IP-Symcon-Modul. Deine Aufgabe ist zunächst **nicht die eigentliche Implementierung**, sondern die vollständige technische, funktionale und architektonische Vorbereitung des Projekts.
+
+## Projekt
+
+Wir entwickeln ein neues Symcon-Modul für die **Proxon Komforttechnik / Wärmetechnik der Firma Zimmermann**.
+
+Hersteller:
+https://www.zimmermann-lueftung.de/
+
+Arbeitsordner des Projekts:
+
+`symcon-module-proxon`
+
+Das Projekt startet bewusst **bei 0**. Bestehende Entwürfe, Dateien und Strukturen sind Informationsquellen, aber keine Vorgabe, die ungeprüft übernommen werden darf.
+
+## Vorliegende Grundlagen
+
+Dir stehen mehrere Dateien als Grundlage zur Verfügung:
+
+1. **Zwei Excel-Dateien**
+   Diese enthalten technische Informationen und Datenpunkte für das Proxon-System.
+
+2. **Ein vorhandener Projektentwurf**
+   Dieser beschreibt bereits einen möglichen Ansatz für das Modul.
+
+   Wichtig: Dieser Entwurf ging teilweise davon aus, eine bereits vorhandene Symcon-Struktur weiterzuverwenden. Für das neue Modul gilt diese Annahme ausdrücklich nicht.
+
+3. **Eine Übersicht geplanter Komfortfunktionen**
+
+4. **Ein bestehendes Template für Symcon-Module bzw. Visualisierung**
+   Dieses dient als Orientierung für Struktur, Architektur und Darstellung.
+
+Lege alle relevanten Quelldateien strukturiert im Projektordner `symcon-module-proxon` ab. Originaldateien dürfen nicht verändert werden. Falls sinnvoll, lege einen Unterordner wie `docs/source` oder eine vergleichbar saubere Projektstruktur an.
+
+## Zielbild des Moduls
+
+Das Modul soll die Proxon-Anlage möglichst vollständig in IP-Symcon integrieren.
+
+Dabei sind grundsätzlich zwei Betriebsvarianten zu berücksichtigen:
+
+**Variante A: Vollständige Einrichtung durch das Modul**
+
+Das Modul erzeugt und konfiguriert alle benötigten Modbus-Instanzen, Variablen, Profile, Kategorien und weiteren Symcon-Objekte selbstständig.
+
+**Variante B: Nutzung einer vorhandenen Modbus-Verbindung**
+
+Der Benutzer kann eine bereits existierende Modbus-Verbindung bzw. bestehende Modbus-Infrastruktur auswählen und das Proxon-Modul darauf aufsetzen.
+
+Beide Varianten müssen architektonisch sauber unterstützt werden. Prüfe dabei insbesondere Lifecycle, Konfiguration, Discovery, Wiederverwendung bestehender Instanzen, doppelte Register, Instanzbeziehungen sowie Verhalten bei Änderungen oder Deinstallation.
+
+## Funktionsumfang
+
+Das Modul soll ausdrücklich **nicht nur Modbus-Register abbilden**.
+
+Auf Basis der vorhandenen Daten sollen zusätzlich sinnvolle Komfortfunktionen entstehen, beispielsweise:
+
+• Betriebsarten und Szenen  
+• Temperatursteuerung  
+• Lüftungssteuerung  
+• Zeitprogramme  
+• Schnellaktionen  
+• Statusübersichten  
+• Warnungen und Fehlerzustände  
+• Filterinformationen und Wartungsfunktionen  
+• Energie- und Verbrauchsinformationen, sofern technisch verfügbar  
+• Automatikfunktionen  
+• Abwesenheit, Urlaub oder Nachtbetrieb  
+• kombinierte Aktionen, die mehrere Register sinnvoll zusammenfassen  
+• Zustandsüberwachung und Plausibilitätsprüfungen  
+• Historisierung und geeignete Auswertungen  
+• Funktionen, die die Bedienung gegenüber einer reinen Registersteuerung deutlich vereinfachen
+
+Diese Liste ist ausdrücklich nicht abschließend.
+
+## Phase 1: Vollständige Bestandsaufnahme
+
+Analysiere zunächst **alle bereitgestellten Dateien vollständig**.
+
+Erstelle daraus eine strukturierte technische Wissensbasis.
+
+Prüfe insbesondere:
+
+• verfügbare Modbus-Register  
+• Registertypen  
+• Datentypen  
+• Skalierungen  
+• Einheiten  
+• Wertebereiche  
+• Read/Write-Eigenschaften  
+• Enumerationen  
+• Abhängigkeiten zwischen Registern  
+• Betriebsarten  
+• Fehlerregister  
+• Statusinformationen  
+• Anlagenvarianten  
+• optionale Komponenten  
+• bekannte Besonderheiten  
+• widersprüchliche Angaben zwischen den Quellen  
+• fehlende oder unklare Informationen
+
+Übernimm keine Annahme ungeprüft.
+
+Dokumentiere Unsicherheiten ausdrücklich als solche.
+
+## Phase 2: Externe Recherche
+
+Bevor die Architektur finalisiert wird, recherchiere zusätzlich den aktuellen Stand am Markt.
+
+Untersuche insbesondere:
+
+• Zimmermann Proxon selbst  
+• verfügbare technische Dokumentation  
+• Modbus-Dokumentationen  
+• bestehende Smart-Home-Integrationen  
+• Home Assistant  
+• ioBroker  
+• openHAB  
+• FHEM  
+• Node-RED  
+• GitHub-Projekte  
+• IP-Symcon-Module  
+• Forenbeiträge  
+• Community-Projekte  
+• Hersteller-Apps und Bedienoberflächen
+
+Ziel ist nicht, fremde Implementierungen einfach zu kopieren.
+
+Du sollst herausfinden:
+
+1. Welche Funktionen andere Integrationen bereits anbieten.
+2. Welche Bedienkonzepte sich bewährt haben.
+3. Welche Komfortfunktionen uns bislang fehlen.
+4. Welche technischen Probleme andere Entwickler bereits identifiziert haben.
+5. Welche Architekturansätze sinnvoll sind.
+6. Welche Funktionen sich aus den verfügbaren Daten zusätzlich ableiten lassen.
+
+Trenne dabei klar zwischen:
+
+**belegten technischen Informationen**
+
+und
+
+**eigenen Architektur- bzw. Produktvorschlägen**.
+
+Halte bei externen Erkenntnissen jeweils die Quelle fest.
+
+## Phase 3: Komfortfunktionen challengen und erweitern
+
+Analysiere die vorhandene Liste der Komfortfunktionen kritisch.
+
+Erstelle anschließend eine konsolidierte Funktionsmatrix mit mindestens:
+
+| Funktion | Beschreibung | Nutzen | benötigte Register/Daten | technische Machbarkeit | Priorität | Quelle |
+|---|---|---|---|---|---|---|
+
+Ordne Funktionen sinnvoll in Kategorien wie:
+
+• Basisintegration  
+• Steuerung  
+• Automatisierung  
+• Komfort  
+• Monitoring  
+• Wartung  
+• Energie  
+• Diagnose  
+• Visualisierung
+
+Unterscheide außerdem zwischen:
+
+**MVP**
+
+**später sinnvoll**
+
+**optional / experimentell**
+
+## Phase 4: Modularchitektur entwickeln
+
+Entwirf anschließend eine saubere IP-Symcon-Modularchitektur.
+
+Prüfe insbesondere, ob mehrere Module bzw. Instanztypen sinnvoll sind, zum Beispiel:
+
+• Gateway / Splitter  
+• Proxon Hauptgerät  
+• Räume bzw. Zonen  
+• Lüftung  
+• Heizung  
+• Warmwasser  
+• Diagnose  
+• Energie  
+• Discovery
+
+Die konkrete Architektur soll aus den technischen Anforderungen abgeleitet werden und nicht aus dieser Beispielstruktur.
+
+Berücksichtige dabei:
+
+• IP-Symcon-Konventionen  
+• Modul-Lifecycle  
+• `module.json`  
+• `library.json`  
+• GUID-Konzept  
+• Instanztypen  
+• Parent/Child-Strukturen  
+• Properties  
+• Attributes  
+• Variablenprofile  
+• Actions  
+• Modbus-Kommunikation  
+• Fehlerbehandlung  
+• Statuscodes  
+• Logging  
+• Debugging  
+• Konfigurationsänderungen  
+• Migration zukünftiger Versionen  
+• Updatefähigkeit  
+• Erweiterbarkeit für weitere Proxon-Anlagen  
+• saubere Trennung von Kommunikation, Logik und Darstellung  
+• Wiederverwendung bestehender Modbus-Verbindungen  
+• Vermeidung unnötiger Modbus-Abfragen  
+• Polling-Konzept  
+• Caching  
+• Schreibzugriffe  
+• Race Conditions  
+• Registerabhängigkeiten
+
+## Phase 5: Visualisierung als eigener Bestandteil
+
+Die Visualisierung ist ein fester Bestandteil des Projekts und darf nicht erst am Ende ergänzt werden.
+
+Orientiere dich am vorhandenen Template und entwickle zunächst **Mockups**, bevor Visualisierungscode geschrieben wird.
+
+Es sollen mehrere unterschiedliche Kacheltypen entstehen.
+
+Mindestens prüfen:
+
+### Übersichtskachel
+
+Gesamtzustand der Anlage auf einen Blick, beispielsweise:
+
+• Betriebsart  
+• Innen- und Außentemperatur  
+• Lüftungsstufe  
+• Heizstatus  
+• relevante Warnungen  
+• Anlagenzustand
+
+### Steuerungskachel
+
+Direkte Bedienung häufig genutzter Funktionen.
+
+### Raum- oder Temperaturkachel
+
+Sollwert, Istwert, Betriebszustand und gegebenenfalls Verlauf.
+
+### Lüftungskachel
+
+Lüftungsstufe, Betriebsart, relevante Luftwerte und Status.
+
+### Energie-/Statistikkachel
+
+Verläufe, Messwerte und historische Informationen.
+
+### Wartungs-/Diagnosekachel
+
+Filter, Fehler, Warnungen und Anlagenstatus.
+
+Zusätzlich sollen grafische Darstellungen geprüft werden, bei denen die Anlage als **Schaubild** dargestellt wird.
+
+Beispiele:
+
+• Luftströme  
+• Zu- und Abluft  
+• Außenluft  
+• Raumluft  
+• Wärmerückgewinnung  
+• Temperaturen an verschiedenen Punkten  
+• aktive Heiz- oder Lüftungswege
+
+Die Visualisierung soll sowohl auf Desktop als auch auf mobilen Geräten sinnvoll funktionieren.
+
+Erstelle zunächst Mockups und dokumentiere für jede Kachel:
+
+• Zweck  
+• dargestellte Informationen  
+• Bedienelemente  
+• benötigte Datenpunkte  
+• Zustände  
+• Fehlerzustände  
+• Desktop-Darstellung  
+• Mobile-Darstellung
+
+Noch keinen finalen Visualisierungscode schreiben.
+
+## Phase 6: Projekt-Wiki als verbindliches Lasten- und Pflichtenheft
+
+Nachdem Analyse, Recherche und Architektur abgeschlossen sind, überführst du sämtliche Erkenntnisse in eine strukturierte Dokumentation innerhalb des Repositories.
+
+Diese Dokumentation wird während der gesamten Entwicklung zur **verbindlichen technischen und funktionalen Referenz**.
+
+Sie soll mindestens enthalten:
+
+`docs/README.md`
+
+Projektübersicht und Navigation.
+
+`docs/requirements.md`
+
+Funktionale und nichtfunktionale Anforderungen.
+
+`docs/architecture.md`
+
+Gesamtarchitektur des Moduls.
+
+`docs/modbus.md`
+
+Vollständiges Register- und Kommunikationskonzept.
+
+`docs/features.md`
+
+Komfortfunktionen und Funktionsmatrix.
+
+`docs/visualization.md`
+
+Visualisierungskonzept und Mockups.
+
+`docs/setup.md`
+
+Installations- und Konfigurationsvarianten.
+
+`docs/testing.md`
+
+Teststrategie und Abnahmekriterien.
+
+`docs/research.md`
+
+Externe Recherche und Quellen.
+
+`docs/open-questions.md`
+
+Offene technische und fachliche Fragen.
+
+`docs/decisions.md`
+
+Architecture Decision Records bzw. wichtige Architekturentscheidungen mit Begründung.
+
+Passe die Struktur an, falls eine andere Aufteilung fachlich sinnvoller ist.
+
+## Anforderungen an die Dokumentation
+
+Jede wesentliche Funktion muss später eindeutig auf eine Anforderung zurückgeführt werden können.
+
+Verwende dafür bei Bedarf IDs wie:
+
+`REQ-001`
+
+`MODBUS-001`
+
+`FEATURE-001`
+
+`VIS-001`
+
+`TEST-001`
+
+Die Dokumentation soll konkret genug sein, dass ein anderer Entwickler das Modul anhand dieser Dokumentation implementieren könnte, ohne zentrale Architekturentscheidungen selbst neu treffen zu müssen.
+
+## Zusätzliche Agents
+
+Nutze für die Analyse gezielt zusätzliche spezialisierte Agents, sofern die Umgebung dies unterstützt.
+
+Mindestens sinnvoll sind:
+
+**Agent 1: Modbus / Proxon Specialist**  
+Analysiert Register, Protokoll, Datentypen, Abhängigkeiten und technische Dokumentation.
+
+**Agent 2: IP-Symcon Module Architect**  
+Prüft Modularchitektur, Symcon-Konventionen, Lifecycle und Best Practices.
+
+**Agent 3: Smart Home Market Researcher**  
+Analysiert bestehende Integrationen und Komfortfunktionen anderer Systeme.
+
+**Agent 4: UX / Visualization Architect**  
+Entwickelt Bedienkonzept, Kacheln und Mockups.
+
+**Agent 5: QA / Architecture Challenger**  
+Sucht bewusst nach Widersprüchen, fehlenden Anforderungen, Risiken und Architekturproblemen.
+
+Die Ergebnisse der Agents sind anschließend von dir als Lead Architect zu prüfen, zusammenzuführen und bei Widersprüchen zu entscheiden.
+
+Die Agents ersetzen nicht deine eigene Prüfung.
+
+## Arbeitsprinzip
+
+Arbeite in klaren Phasen.
+
+Springe nicht direkt in die Implementierung.
+
+Reihenfolge:
+
+1. Dateien und vorhandene Informationen sichern und strukturieren.
+2. Alle Quellen analysieren.
+3. Technische Wissensbasis erstellen.
+4. Externe Recherche durchführen.
+5. Vorhandene Komfortfunktionen challengen.
+6. Zusätzliche Funktionen identifizieren.
+7. Modularchitektur entwickeln.
+8. Visualisierungskonzept und Mockups erstellen.
+9. Risiken und offene Fragen identifizieren.
+10. Architektur durch einen Challenger-Agent prüfen lassen.
+11. Projekt-Wiki erstellen.
+12. Konsistenzprüfung aller Dokumente durchführen.
+13. Erst danach einen konkreten Implementierungsplan erstellen.
+
+## Noch nicht tun
+
+In dieser Phase ausdrücklich noch nicht:
+
+• das komplette Modul programmieren  
+• Architekturentscheidungen stillschweigend treffen  
+• unklare Registerwerte erfinden  
+• bestehende Symcon-Strukturen voraussetzen  
+• Visualisierung direkt implementieren, bevor Mockups existieren  
+• Anforderungen aus dem vorhandenen Projektentwurf ungeprüft übernehmen
+
+## Erwartetes Ergebnis dieser Phase
+
+Am Ende möchte ich im Ordner `symcon-module-proxon` einen vollständig vorbereiteten Projektstand haben mit:
+
+1. strukturierten Originalquellen,
+2. konsolidierter technischer Dokumentation,
+3. vollständiger Registerübersicht,
+4. dokumentierter Markt- und Wettbewerbsrecherche,
+5. konsolidierter Liste der Komfortfunktionen,
+6. begründeter IP-Symcon-Modularchitektur,
+7. Visualisierungskonzept inklusive Mockups,
+8. Risiken und offenen Fragen,
+9. verbindlichem Projekt-Wiki als Lasten- und Pflichtenheft,
+10. einem darauf basierenden konkreten Implementierungsplan.
+
+Bevor mit der Implementierung begonnen wird, führe abschließend einen **Architecture Review** durch und prüfe insbesondere:
+
+• Gibt es widersprüchliche Anforderungen?  
+• Sind alle Register nachvollziehbar dokumentiert?  
+• Sind Read/Write-Risiken berücksichtigt?  
+• Funktionieren beide Installationsvarianten architektonisch?  
+• Fehlen relevante Komfortfunktionen?  
+• Ist die Visualisierung aus Nutzersicht vollständig gedacht?  
+• Sind Wartung, Diagnose und Fehlerfälle berücksichtigt?  
+• Ist die Architektur erweiterbar?  
+• Sind alle wesentlichen Entscheidungen dokumentiert?  
+• Gibt es Annahmen, die vor der Implementierung verifiziert werden müssen?
+
+Erstelle zum Abschluss einen kurzen Bericht mit:
+
+**Entscheidungsstand**
+
+**offene Fragen**
+
+**kritische Risiken**
+
+**empfohlene Reihenfolge der Implementierung**
+
+**Punkte, die vor Coding-Beginn zwingend geklärt werden müssen**

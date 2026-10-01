@@ -1,0 +1,932 @@
+# Entwicklungsplan: Proxon-FWT-/T300-Modul für IP-Symcon
+
+  ## 1. Zielbild
+
+  Das Modul soll zwei vollständig unterstützte Installationswege bieten:
+
+  ### Variante 1: Neue Anlage
+
+  Das Modul richtet die komplette Modbus-Struktur ein:
+
+  - COM-Port auswählen
+  - Modbus-Kommunikation konfigurieren
+  - FWT/T300 erkennen
+  - Slave-Adresse bestimmen
+  - notwendige Modbus-Instanzen anlegen
+  - Registervariablen anlegen
+  - Skalierungen und Profile konfigurieren
+  - Verbindung testen
+
+  ### Variante 2: Bestehende Anlage
+
+  Das Modul verwendet vorhandene Modbus-Instanzen:
+
+  - bestehende Modbus-Struktur erkennen
+  - Register automatisch anhand der Adresse zuordnen
+  - vorhandene Variablen auswählen lassen
+  - keine bestehenden Objekte verändern
+  - fehlende oder doppelte Zuordnungen anzeigen
+
+  Beide Varianten müssen intern dieselbe Register- und Logikschicht verwenden.
+
+  ———
+
+  # 2. Grundarchitektur
+
+  ## 2.1 Module
+
+  Es sollten mehrere klar getrennte Instanztypen entstehen:
+
+  Proxon Configurator
+      ├── Einrichtung neuer Modbus-Verbindung
+      ├── Auswahl bestehender Modbus-Instanz
+      ├── Auto-Discovery
+      └── Register-Mapping
+
+  Proxon FWT
+      ├── Laufende FWT-Kommunikation
+      ├── Betriebs- und Komfortwerte
+      ├── Energie- und Diagnosewerte
+      └── optionale Steuerung
+
+  Proxon T300
+      ├── Warmwasserwerte
+      ├── Betriebsarten
+      ├── PV-/Wärmepumpenfreigaben
+      ├── Fehlerdiagnose
+      └── optionale Steuerung
+
+  Ein zusätzliches gemeinsames Bibliotheksverzeichnis sollte enthalten:
+
+  RegisterCatalog
+  MappingEngine
+  DiscoveryEngine
+  ModbusTransport
+  ValueNormalizer
+  Diagnostics
+  ControlArbitration
+
+  ## 2.2 Klare Trennung der Verantwortlichkeiten
+
+  Das Modul sollte unterscheiden zwischen:
+
+  - Transport
+  - Registerdefinition
+  - Messwertaufbereitung
+  - Gerätezustand
+  - Steuerlogik
+  - Diagnose
+  - Darstellung
+
+  Dadurch bleibt die Steuerlogik unabhängig davon, ob die Daten aus einer neu erzeugten oder einer bestehenden Modbus-Instanz kommen.
+
+  ———
+
+  # 3. Registerkatalog
+
+  ## 3.1 Einheitliche Registerdefinition
+
+  Jedes Register benötigt einen vollständigen Datensatz:
+
+  Gerät: FWT oder T300
+  Registerdarstellung: 3x0016 oder 4x0025
+  Interne Adresse: exakt dokumentiert
+  Funktion: Holding oder Input
+  Datentyp: Integer, Signed, Float, 32 Bit usw.
+  Skalierung: zum Beispiel 0,1 oder 0,01
+  Einheit: °C, W, %, RPM, m³/h
+  Lesbar: ja/nein
+  Schreibbar: ja/nein
+  Priorität: Basis, Komfort, Energie, Diagnose, Service
+  Variable: interner stabiler Ident
+  Beschreibung
+  Gültiger Wertebereich
+
+  Wichtig ist die Trennung zwischen sichtbarer Registerbezeichnung und interner Adresse. Damit vermeiden wir Off-by-one-Fehler bei 3x- und 4x-Registern.
+
+  ## 3.2 Profilgruppen
+
+  Nicht alle 822 Register sollten standardmäßig als sichtbare Variablen angelegt werden.
+
+  ### Basis
+
+  - Betriebsart
+  - aktuelle Sollwerte
+  - Isttemperaturen
+  - Lüfterstufen
+  - Verdichterstatus
+  - Heiz-/Kühlstatus
+  - Kommunikationsstatus
+  - zentrale Fehler
+
+  ### Komfort
+
+  - Luftmenge
+  - Raumtemperaturen
+  - Zone 1 und 2
+  - Zeitprogrammstufe
+  - Umluftbetrieb
+  - Bypass
+  - Klappenposition
+  - Nachtabsenkung
+  - Intensivlüftung
+
+  ### Energie
+
+  - Gesamtleistung
+  - FU-Leistung
+  - Verdichterleistung
+  - Luftmenge
+  - JAZ-Werte
+  - Tages-/Wochen-/Jahreswerte
+  - PV-interne Zustände
+
+  ### Diagnose
+
+  - Fehlerstatus 1–4
+  - FU-Fehler
+  - Paketfehler
+  - Modbus-Fehler
+  - Neustartzähler
+  - Laufzeitzähler
+  - Sperr- und Abtautimer
+  - Lüfterfehler
+  - Sensorfehler
+
+  ### Service
+
+  - ADC-Werte
+  - PID-Werte
+  - interne Rohwerte
+  - PTC-Moduldiagnose
+  - NBE-Modulwerte
+  - interne Regelparameter
+
+  Servicewerte sollten standardmäßig verborgen oder deaktiviert sein.
+
+  ———
+
+  # 4. Phase 0: Anforderungen und Bestandsaufnahme
+
+  ## Ziele
+
+  Vor der eigentlichen Programmierung wird die vorhandene Anlage dokumentiert.
+
+  ## Aufgaben
+
+  - aktuelle IP-Symcon-Version feststellen
+  - vorhandene Modbus-Instanzen vollständig erfassen
+  - COM-Port- und Busstruktur dokumentieren
+  - FWT-Slave-Adresse prüfen
+  - T300-Slave-Adresse prüfen
+  - klären, ob beide Geräte am gleichen Bus laufen
+  - bestehende Registervariablen und Schreibvariablen erfassen
+  - aktuelle Skripte und Ereignisse dokumentieren
+  - Konflikte zwischen vorhandenen Steuerungen erfassen
+
+  ## Ergebnis
+
+  Eine verbindliche Systemübersicht:
+
+  COM-Port
+      ↓
+  Modbus-Verbindung
+      ├── FWT-Adresse
+      └── T300-Adresse
+
+  Außerdem eine Liste:
+
+  - welche Variablen übernommen werden können,
+  - welche ersetzt werden sollten,
+  - welche bestehenden Skripte später deaktiviert werden müssen,
+  - welche Daten bisher fehlen.
+
+  Diese Phase bleibt vollständig lesend.
+
+  ———
+
+  # 5. Phase 1: Registerkatalog fertigstellen
+
+  ## Aufgaben
+
+  Die beiden Excel-Dateien werden in einen versionierten Registerkatalog übertragen.
+
+  Dabei müssen pro Register geprüft werden:
+
+  - Adresse
+  - Funktion
+  - Datentyp
+  - Skalierung
+  - Einheit
+  - Wertebereich
+  - Lesbarkeit
+  - Schreibbarkeit
+  - Bedeutung
+  - Abhängigkeiten
+
+  ## Besondere Prüfungen
+
+  ### T300
+
+  - Rohwerte und umgerechnete Werte trennen
+  - Temperaturfaktoren dokumentieren
+  - 32-Bit-Zähler korrekt zusammensetzen
+  - Fehlerbitmasken auswerten
+  - PV-Zustände und PV-Schwellen unterscheiden
+  - Firmware- und Neustartzähler erfassen
+
+  ### FWT
+
+  - Modell- und Typregister prüfen
+  - Leistungswerte und Einheiten validieren
+  - Luftmengenfaktor prüfen
+  - JAZ-Register als 32-Bit- oder Mehrfachwerte prüfen
+  - FU- und Verdichterregister unterscheiden
+  - PTC-/NBE-Struktur sauber trennen
+  - doppelte Register-Identitäten über Modul-/Zonenkontext auflösen
+
+  ## Ergebnis
+
+  Versionierter Katalog, zum Beispiel:
+
+  catalog/fwt.json
+  catalog/t300.json
+  catalog/common.json
+  catalog/catalog-version.json
+
+  Die Excel-Dateien bleiben die fachliche Quelle. Im Modul wird zusätzlich festgehalten:
+
+  - Quelldatei
+  - Quelldatum
+  - Profilversion
+  - letzte Prüfung
+  - bekannte Unsicherheiten
+
+  ———
+
+  # 6. Phase 2: Gemeinsame Modbus-Abstraktion
+
+  Die spätere Logik darf nicht direkt von konkreten Variablen-IDs abhängen.
+
+  ## Interne Schnittstelle
+
+  Beispiel:
+
+  readRegister(device, registerDefinition)
+  writeRegister(device, registerDefinition, value)
+  getValue(device, registerDefinition)
+  getQuality(device, registerDefinition)
+
+  Die Datenquelle kann dabei sein:
+
+  Quelle A: vom Modul angelegte Modbus-Variable
+  Quelle B: bestehende IP-Symcon-Variable
+
+  ## Anforderungen
+
+  - keine hardcodierten Objekt-IDs
+  - keine Abhängigkeit von Variablennamen
+  - Registeradresse als primärer Schlüssel
+  - Funktion und Slave-Adresse als Teil des Schlüssels
+  - Datenalter und Kommunikationsqualität mitführen
+  - ungültige Werte erkennen
+  - Rohwert und normierten Wert getrennt speichern
+
+  ———
+
+  # 7. Phase 3: Variante 1 – Einrichtung auf der grünen Wiese
+
+  ## 7.1 Einrichtungsassistent
+
+  Der Assistent führt den Benutzer Schritt für Schritt:
+
+  ### Schritt 1: Gerätetyp
+
+  - FWT
+  - T300
+  - automatisch erkennen
+
+  ### Schritt 2: COM-Port
+
+  - verfügbare COM-Ports anzeigen
+  - aktuell belegte oder nicht erreichbare Ports markieren
+  - Benutzer wählt Port
+
+  ### Schritt 3: Kommunikation
+
+  Voreinstellungen aus dem Profil:
+
+  Modbus RTU
+  19200 Baud
+  8 Datenbits
+  gerade Parität
+  1 Stopbit
+
+  Alle Werte bleiben veränderbar, falls das Gerät abweichend konfiguriert ist.
+
+  ### Schritt 4: Vorhandene Struktur prüfen
+
+  Vor dem Anlegen:
+
+  - existiert bereits ein passender COM-Port?
+  - existiert bereits eine Modbus-Verbindung?
+  - ist eine passende Slave-Adresse vorhanden?
+  - gibt es eine doppelte Adresse?
+  - wird der Port bereits von einer anderen Anwendung genutzt?
+
+  ### Schritt 5: Geräteerkennung
+
+  Das Modul liest mehrere sichere Signaturregister und bewertet die Antwort.
+
+  ### Schritt 6: Vorschau
+
+  Anzeige:
+
+  Gefunden:
+  FWT
+  Slave-Adresse: 41
+  Sicherheit: hoch
+  Registerantworten: 8 von 9
+
+  ### Schritt 7: Benutzerbestätigung
+
+  Erst danach dürfen Instanzen und Variablen angelegt werden.
+
+  ## 7.2 Erzeugte Struktur
+
+  Die erzeugte Struktur sollte nachvollziehbar und stabil sein:
+
+  Proxon
+      ├── Verbindungen
+      │   └── Proxon Modbus-Verbindung
+      ├── FWT
+      │   ├── Basis
+      │   ├── Komfort
+      │   ├── Energie
+      │   └── Diagnose
+      └── T300
+          ├── Temperaturen
+          ├── Betriebsarten
+          ├── PV
+          └── Diagnose
+
+  ## 7.3 Idempotenz
+
+  Das Modul muss bei wiederholter Einrichtung erkennen:
+
+  - welche Instanzen bereits vorhanden sind,
+  - welche Variablen bereits existieren,
+  - welche Register bereits konfiguriert sind.
+
+  Es darf keine Duplikate erzeugen.
+
+  ———
+
+  # 8. Phase 4: Variante 2 – vorhandene Modbus-Instanzen
+
+  ## 8.1 Automatisches Mapping
+
+  Das Modul durchsucht die vorhandene Struktur und sucht anhand von:
+
+  - Slave-Adresse
+  - Funktion
+  - Registeradresse
+  - Datentyp
+  - Einheit
+  - Skalierung
+
+  Nicht anhand des Namens.
+
+  ## 8.2 Mapping-Ansicht
+
+  Das Backend zeigt jede Zuordnung:
+
+  Modulwert              Register       Gefundene Quelle       Ergebnis
+  FWT Gesamtleistung     4x0025         Variable 42328          automatisch
+  FWT Luftmenge          4x0026         keine Quelle            fehlt
+  T300 Sollwert          4x0879         Variable 34926          automatisch
+
+  Mögliche Zustände:
+
+  - automatisch gefunden
+  - mehrere Kandidaten
+  - manuell auswählen
+  - Register fehlt
+  - falscher Datentyp
+  - Wert unplausibel
+  - Quelle nicht aktuell
+
+  ## 8.3 Verhalten bei unvollständigen Quellen
+
+  Wenn die bestehende Modbus-Instanz das Register nicht enthält:
+
+  - keine automatische Änderung an der bestehenden Instanz
+  - Hinweis „Register fehlt“
+  - optionaler Vorschlag, das Register später manuell zu ergänzen
+  - Modul funktioniert mit reduziertem Funktionsumfang weiter
+
+  ## 8.4 Eigene logische Variablen
+
+  Auch bei Variante 2 sollte das Proxon-Modul eigene stabile logische Variablen besitzen.
+
+  Die Quelle wird nur referenziert:
+
+  Proxon FWT Gesamtleistung
+      Quelle: bestehende Variable 42328
+      Register: 4x0025
+      Einheit: W
+
+  Vorteile:
+
+  - einheitliche Variablennamen
+  - gleiche Struktur bei beiden Varianten
+  - einfache Migration
+  - Modul kann Rohwerte und normierte Werte sauber trennen
+  - spätere Logik ist unabhängig von der bestehenden Objektstruktur
+
+  ———
+
+  # 9. Phase 5: Auto-Discovery
+
+  ## 9.1 Erkennungsstrategie
+
+  Die Erkennung erfolgt in mehreren Stufen.
+
+  ### Stufe 1: Transport prüfen
+
+  - Modbus-Verbindung erreichbar
+  - Antwort auf zulässige Funktion
+  - kein genereller Timeout
+
+  ### Stufe 2: Slave-Adressen
+
+  - bevorzugt bekannte Adresse verwenden
+  - optional definierter Suchbereich
+  - keine unkontrollierte Vollsuche als Standard
+
+  ### Stufe 3: Signaturregister
+
+  Mehrere Register gezielt lesen.
+
+  ### Stufe 4: Plausibilität
+
+  Prüfen:
+
+  - Wertebereich
+  - gegenseitige Konsistenz
+  - erwartete Betriebsarten
+  - Firmwareformat
+  - Temperaturbereiche
+  - Statuskombinationen
+
+  ### Stufe 5: Wiederholungsprüfung
+
+  Kritische Register zweimal lesen, um zufällige oder fehlerhafte Antworten auszuschließen.
+
+  ## 9.2 Bewertungsmodell
+
+  Jede Erkennung erhält eine Sicherheit:
+
+  hoch
+  mittel
+  niedrig
+  unbekannt
+
+  Eine automatische Einrichtung erfolgt nur bei hoher Sicherheit. Bei mittlerer Sicherheit muss der Benutzer bestätigen.
+
+  ## 9.3 Fehlerfälle
+
+  Die Discovery muss erkennen:
+
+  - falsche Parität
+  - falsche Baudrate
+  - falsche Slave-Adresse
+  - doppelte Slave-Adresse
+  - Gerät antwortet nur teilweise
+  - falsche Registerbasis
+  - falscher Gerätetyp
+  - Modbus-TCP-Konverter ohne dahinterliegendes Gerät
+  - bereits laufende Fremdabfrage
+  - Kommunikationsabbruch während des Scans
+
+  ———
+
+  # 10. Phase 6: Laufzeitkommunikation
+
+  ## Polling-Gruppen
+
+  Die Register werden in Gruppen abgefragt:
+
+  ### Schnell
+
+  - Betriebsstatus
+  - Fehlerstatus
+  - Verdichterstatus
+  - Lüfterstatus
+  - aktuelle Temperaturen
+  - aktuelle Leistungswerte
+
+  ### Normal
+
+  - Raumwerte
+  - Sollwerte
+  - Luftmenge
+  - Klappenpositionen
+  - PV-Zustände
+
+  ### Langsam
+
+  - Firmware
+  - Laufzeit
+  - Filterwerte
+  - JAZ
+  - Wartungswerte
+  - PTC-/NBE-Diagnose
+
+  ### Service
+
+  - Rohwerte
+  - ADC
+  - PID
+  - selten benötigte Detailregister
+
+  ## Anforderungen
+
+  - konfigurierbares Polling
+  - keine parallelen Zugriffe auf denselben Bus
+  - Bus-Sperre beziehungsweise Kommunikationsarbitration
+  - Timeout
+  - begrenzte Wiederholungen
+  - Backoff bei Fehlern
+  - keine unnötigen Registerabfragen
+  - Kommunikationsqualität als Variable
+  - Zeitpunkt der letzten erfolgreichen Antwort
+
+  ———
+
+  # 11. Phase 7: FWT-Funktionen
+
+  ## Basis
+
+  - Betriebsart
+  - Lüfterstufe
+  - Heiz-/Kühlstatus
+  - Verdichterstatus
+  - Bypass
+  - 4-Wege-Ventil
+  - Fehlerstatus
+  - Luftmenge
+  - Temperaturen
+  - Leistung
+
+  ## Komfort
+
+  - Raumtemperatur
+  - Zone 1 und Zone 2
+  - Intensivlüftung
+  - Nachtabsenkung
+  - Zeitprogramm
+  - Umluftstatus
+  - Bypass- und Klappenstatus
+
+  ## Energie
+
+  - Gesamtleistung
+  - FU-Leistung
+  - Verdichterleistung
+  - Luftmenge
+  - JAZ-Werte
+  - Energiezähler
+  - Leistungsbegrenzungen
+
+  ## Diagnose
+
+  - Fehlerstatus 1–4
+  - FU-Zustand
+  - FU-Fehler
+  - Kommunikationsfehler
+  - Abtauzeiten
+  - Verdichter-Sperrzeit
+  - Mindestlaufzeit
+  - Lüfterfehler
+  - PTC-Fehler
+
+  ———
+
+  # 12. Phase 8: T300-Funktionen
+
+  ## Basis
+
+  - Betriebsmodus
+  - Normal-Solltemperatur
+  - E-Heiz-Solltemperatur
+  - aktueller Sollwert
+  - Automatik
+  - Nachtabsenkung
+  - Warmwasser-/Dusch-/Badeanforderung
+  - Wärmepumpenfreigabe
+  - Elektroheizung
+
+  ## Messwerte
+
+  - T20
+  - T21
+  - T6
+  - T11
+  - T13
+  - Verdampfertemperatur
+  - Sauggaswerte
+  - Druckdifferenzen
+  - Ventilposition
+  - Lüftergeschwindigkeit
+
+  ## Energie und PV
+
+  - PV-T9-Schwelle
+  - PV-Elektroheizung
+  - PV-Wärmepumpe
+  - Solarstatus
+  - Laufzeit
+  - Neustartzähler
+
+  ## Diagnose
+
+  - Fehlerbitmaske
+  - Sensorfehler
+  - Modbus-Fehler
+  - Lüfterfehler
+  - Verdichterfehler
+  - Abtauzustand
+  - Überhitzungswerte
+  - Legionellenzähler
+  - Firmware
+
+  ———
+
+  # 13. Phase 9: Steuerlogik
+
+  Die vorhandenen Skripte dürfen nicht einfach unverändert in das Modul übernommen werden.
+
+  ## Ziel
+
+  Eine zentrale Steuerlogik mit nur einem autoritativen Schreiber pro Zielregister.
+
+  ## Maßnahmen
+
+  - Prioritätsmodell
+  - Steuerungsanforderung und tatsächlicher Zustand trennen
+  - Semaphore gegen parallele Aktionen
+  - Mindestabstände zwischen Schreibvorgängen
+  - Schreibbestätigung
+  - Timeout
+  - Rückfall bei fehlender Kommunikation
+  - manueller Override
+  - Sperre bei ungültigen Eingangswerten
+  - nachvollziehbares Ereignisprotokoll
+
+  ## T300-Priorität
+
+  Beispielsweise:
+
+  Sicherheitsabschaltung
+      ↓
+  Manueller Override
+      ↓
+  Dusch-/Badeanforderung
+      ↓
+  PV-Betrieb
+      ↓
+  Tagbetrieb
+      ↓
+  Nachtbetrieb
+
+  Die bisherige parallele Logik zwischen T300 - Steuerung und SetTemperatur muss beim Modul vollständig zusammengeführt werden.
+
+  ## FWT-Priorität
+
+  Störung
+      ↓
+  Manueller Betrieb
+      ↓
+  Intensivlüftung
+      ↓
+  Kühlung/Heizung
+      ↓
+  Zeitprogramm
+      ↓
+  Normalbetrieb
+
+  Schreibfunktionen sollten standardmäßig deaktiviert sein und separat aktiviert werden.
+
+  ———
+
+  # 14. Phase 10: Diagnose und Bedienung
+
+  Das Modul sollte einen zentralen Diagnosebereich erhalten.
+
+  ## Kommunikationsdiagnose
+
+  - Verbindung erreichbar
+  - letzte erfolgreiche Antwort
+  - Antwortzeit
+  - Timeout-Zähler
+  - Wiederholungszähler
+  - CRC-/Paketfehler
+  - Modbus-Fehler
+  - fehlende Register
+  - Datenalter
+
+  ## Geräte-Diagnose
+
+  - aktiver Betriebszustand
+  - aktueller Regelgrund
+  - aktive Einschränkung
+  - Abtauung
+  - Verdichter-Sperrzeit
+  - Filterzustand
+  - Sensorfehler
+  - FU-Zustand
+  - PTC-Zustand
+
+  ## Erklärbare Zustände
+
+  Nicht nur:
+
+  Heizung: AUS
+
+  Sondern:
+
+  Heizung: AUS
+  Grund: keine Wärmeanforderung
+
+  Oder:
+
+  Verdichter: AUS
+  Grund: Mindest-Sperrzeit noch aktiv
+
+  Das ist einer der größten Mehrwerte gegenüber einzelnen Modbus-Variablen.
+
+  ———
+
+  # 15. Phase 11: Migration der bestehenden Anlage
+
+  Die vorhandene Anlage sollte schrittweise migriert werden.
+
+  ## Reihenfolge
+
+  1. Modul zunächst nur lesend installieren
+  2. bestehende Variablen zuordnen
+  3. Registerwerte vergleichen
+  4. Rohwerte und normierte Werte prüfen
+  5. Diagnosewerte vergleichen
+  6. bestehende Skripte dokumentieren
+  7. Modulsteuerung zunächst deaktiviert lassen
+  8. einzelne Funktion testen
+  9. alte Steuerung erst danach deaktivieren
+  10. eine zentrale Steuerung aktivieren
+
+  Es darf nie gleichzeitig das alte Skript und das Modul dasselbe Register steuern.
+
+  ———
+
+  # 16. Testplan
+
+  ## Unit-Tests
+
+  - Skalierung
+  - Vorzeichen
+  - 32-Bit-Zusammenführung
+  - Bitmasken
+  - Wertebereiche
+  - Zeitumrechnung
+  - Mapping
+  - Erkennungsscore
+  - Prioritätslogik
+
+  ## Integrationstests
+
+  - FWT mit echter Verbindung
+  - T300 mit echter Verbindung
+  - beide Geräte am selben Bus
+  - bestehende Modbus-Instanzen
+  - neu angelegte Modbus-Struktur
+  - doppelte Slave-Adressen
+  - fehlende Register
+  - unvollständige Geräteantwort
+
+  ## Fehler- und Belastungstests
+
+  - COM-Port getrennt
+  - falsche Baudrate
+  - falsche Parität
+  - Gerät ausgeschaltet
+  - Kommunikationsabbruch während des Pollings
+  - ungültige Rohwerte
+  - veraltete Werte
+  - Neustart von IP-Symcon
+  - Modul-Update
+  - wiederholte Discovery
+  - parallele Kommunikation durch Alt-Skripte
+
+  ## Abnahmekriterien
+
+  Das Modul gilt als stabil, wenn:
+
+  - keine doppelten Instanzen entstehen
+  - keine falschen Geräte sicher erkannt werden
+  - Mapping unabhängig von Variablennamen funktioniert
+  - ein Kommunikationsfehler keine Endlosschleife auslöst
+  - keine Steuerung bei veralteten Daten erfolgt
+  - Neustarts die Konfiguration erhalten
+  - ein Update keine Objekt-IDs oder Datenhistorien zerstört
+
+  ———
+
+  # 17. Veröffentlichung
+
+  Vor der Veröffentlichung müssen vorbereitet werden:
+
+  - Repository-Struktur
+  - Modul-Manifest
+  - Versionsschema
+  - Installationsanleitung
+  - Konfigurationsanleitung
+  - Migrationsanleitung
+  - Fehlerdiagnose
+  - Beispielbilder
+  - Changelog
+  - bekannte Einschränkungen
+  - Supportinformationen
+  - Lizenzprüfung der Registerdaten
+
+  Die Excel-Dateien und Herstellerdokumente dürfen nicht automatisch vollständig mit dem Modul veröffentlicht werden, ohne die Nutzungsrechte zu prüfen. Im Modul sollten nur die
+  notwendigen technischen Registerdefinitionen enthalten sein.
+
+  ## Veröffentlichungsstufen
+
+  ### Version 0.1
+
+  - FWT/T300-Erkennung
+  - Variante 1
+  - Basisregister
+  - reine Lesefunktion
+  - Diagnose
+
+  ### Version 0.2
+
+  - Variante 2
+  - bestehendes Mapping
+  - Komfortwerte
+  - Energiewerte
+  - automatische Zuordnungsansicht
+
+  ### Version 0.3
+
+  - verbesserte Discovery
+  - vollständige Fehlerdiagnose
+  - Serviceregister
+  - Migrationsunterstützung
+
+  ### Version 1.0
+
+  - stabile Steuerlogik
+  - Schreibschutz und Berechtigungskonzept
+  - vollständige Dokumentation
+  - Update- und Migrationspfad
+  - Veröffentlichung im Module Store
+
+  ———
+
+  # 18. Empfohlene Reihenfolge
+
+  Die konkrete Reihenfolge sollte sein:
+
+  1. bestehende Modbus-Struktur dokumentieren
+  2. Registerkatalog bereinigen
+  3. interne Registerdefinition erstellen
+  4. lesende Modbus-Abstraktion bauen
+  5. Variante 1 ohne Steuerung umsetzen
+  6. FWT- und T300-Basiswerte auslesen
+  7. Discovery und Fingerprinting ergänzen
+  8. Variante 2 mit Mapping umsetzen
+  9. Komfort-, Energie- und Diagnosewerte ergänzen
+  10. aktuelle Skriptlogik analysieren und migrieren
+  11. zentrale Steuerlogik integrieren
+  12. Fehler- und Belastungstests durchführen
+  13. Dokumentation erstellen
+  14. Beta-Version veröffentlichen
+
+  ## Wichtigster Entwicklungsgrundsatz
+
+  Das Modul sollte niemals von den aktuellen Variablennamen oder Objekt-IDs der bestehenden Anlage abhängen.
+
+  Die stabile Grundlage muss immer sein:
+
+  Gerät
+  + Slave-Adresse
+  + Modbus-Funktion
+  + Registeradresse
+  + Datentyp
+  + Skalierung
+
+  Damit funktionieren sowohl die neue automatische Einrichtung als auch das Mapping bestehender Modbus-Instanzen mit derselben technischen Basis.

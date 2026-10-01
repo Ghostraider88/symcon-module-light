@@ -1,0 +1,32 @@
+{
+    "translations": {
+        "de": {
+            "Hostname": "Hostname",
+            "Update Interval (seconds)": "Aktualisierungsintervall (Sekunden)",
+            "Update Now": "Jetzt aktualisieren",
+            "Hello World": "Hallo Welt",
+            "Status": "Status",
+            "Switch": "Schalter",
+            "Active": "Aktiv",
+            "Inactive": "Inaktiv",
+            "Current state": "Aktueller Zustand",
+            "Switched on": "Eingeschaltet",
+            "Switched off": "Ausgeschaltet",
+            "Actions": "Aktionen",
+            "Switch on": "Einschalten",
+            "Switch off": "Ausschalten",
+            "My Module": "Mein Modul",
+            "Diagnostics": "Diagnose",
+            "Run self-test": "Selbsttest ausführen",
+            "Configuration": "Konfiguration",
+            "Configuration is complete.": "Konfiguration ist vollständig.",
+            "Hostname is not configured.": "Hostname ist nicht konfiguriert.",
+            "Enter a hostname in the configuration.": "Hostname in der Konfiguration eintragen.",
+            "Switch capability": "Schaltfähigkeit",
+            "Switch control is available.": "Schaltfunktion ist verfügbar.",
+            "Not configured yet": "Noch nicht konfiguriert",
+            "Connection failed": "Verbindung fehlgeschlagen",
+            "Invalid configuration": "Ungültige Konfiguration"
+        }
+    }
+}
