@@ -44,12 +44,12 @@ class DynamicLighting extends IPSModuleStrict
         if ($this->RegisterVariableInteger('Mode', $this->Translate('Mode'), '', 40)) $this->SetValue('Mode', self::AMBIENT);
         IPS_SetVariableCustomPresentation($this->GetIDForIdent('Mode'), [
             'PRESENTATION' => VARIABLE_PRESENTATION_ENUMERATION,
-            'OPTIONS' => [
+            'OPTIONS' => json_encode([
                 ['Value' => self::AMBIENT, 'Caption' => $this->Translate('Ambient'), 'IconValue' => '', 'IconActive' => false, 'Color' => -1],
                 ['Value' => self::OFF, 'Caption' => $this->Translate('Off'), 'IconValue' => '', 'IconActive' => false, 'Color' => -1],
                 ['Value' => self::MANUAL, 'Caption' => $this->Translate('Manual scene'), 'IconValue' => '', 'IconActive' => false, 'Color' => -1],
                 ['Value' => self::TV, 'Caption' => $this->Translate('TV scene'), 'IconValue' => '', 'IconActive' => false, 'Color' => -1]
-            ], 'DISPLAY' => 2, 'LAYOUT' => 1
+            ], JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE), 'DISPLAY' => 2, 'LAYOUT' => 1
         ]);
         $this->MaintainAction('Mode', true);
         $this->RegisterMessage($this->GetIDForIdent('Mode'), VM_UPDATE);
