@@ -83,14 +83,19 @@
                           "caption":  "Light targets",
                           "items":  [
                                         {
-                                            "type":  "SelectCategory",
-                                            "name":  "DiscoveryCategoryID",
-                                            "caption":  "Room or area to scan"
+                                            "type":  "SelectInstance",
+                                            "name":  "DiscoveryInstanceID",
+                                            "caption":  "Light instance to add"
+                                        },
+                                        {
+                                            "type": "Button",
+                                            "caption": "Detect and add selected light",
+                                            "onClick": "$rows = []; foreach ($Targets as $row) { $rows[] = $row; } DLT_DiscoverLights($id, $DiscoveryInstanceID, json_encode($rows));"
                                         },
                                         {
                                             "type":  "Label",
                                             "name":  "DiscoveryStatus",
-                                            "caption":  "Choose a category and use Find light variables."
+                                            "caption":  "Select one light instance and detect its controls. Add further lights, then apply changes before configuring profile values."
                                         },
                                         {
                                             "type":  "List",
@@ -190,94 +195,6 @@
                                                                             "type":  "SelectVariable",
                                                                             "requiredAction":  1
                                                                         }
-                                                           },
-                                                            {
-                                                                "name":  "SpringColor",
-                                                                "add":  0,
-                                                                "caption":  "Spring color",
-                                                                "visible":  false,
-                                                               "width":  "auto",
-                                                               "edit":  {
-                                                                            "type":  "NumberSpinner",
-                                                                            "minimum":  0
-                                                                        }
-                                                           },
-                                                            {
-                                                                "name":  "SummerColor",
-                                                                "add":  0,
-                                                                "caption":  "Summer color",
-                                                                "visible":  false,
-                                                               "width":  "auto",
-                                                               "edit":  {
-                                                                            "type":  "NumberSpinner",
-                                                                            "minimum":  0
-                                                                        }
-                                                           },
-                                                            {
-                                                                "name":  "AutumnColor",
-                                                                "add":  0,
-                                                                "caption":  "Autumn color",
-                                                                "visible":  false,
-                                                               "width":  "auto",
-                                                               "edit":  {
-                                                                            "type":  "NumberSpinner",
-                                                                            "minimum":  0
-                                                                        }
-                                                           },
-                                                            {
-                                                                "name":  "WinterColor",
-                                                                "add":  0,
-                                                                "caption":  "Winter color",
-                                                                "visible":  false,
-                                                               "width":  "auto",
-                                                               "edit":  {
-                                                                            "type":  "NumberSpinner",
-                                                                            "minimum":  0
-                                                                        }
-                                                           },
-                                                            {
-                                                                "name":  "SpringTemperature",
-                                                                "add":  0,
-                                                                "caption":  "Spring K",
-                                                                "visible":  false,
-                                                               "width":  "auto",
-                                                               "edit":  {
-                                                                            "type":  "NumberSpinner",
-                                                                            "minimum":  0
-                                                                        }
-                                                           },
-                                                            {
-                                                                "name":  "SummerTemperature",
-                                                                "add":  0,
-                                                                "caption":  "Summer K",
-                                                                "visible":  false,
-                                                               "width":  "auto",
-                                                               "edit":  {
-                                                                            "type":  "NumberSpinner",
-                                                                            "minimum":  0
-                                                                        }
-                                                           },
-                                                            {
-                                                                "name":  "AutumnTemperature",
-                                                                "add":  0,
-                                                                "caption":  "Autumn K",
-                                                                "visible":  false,
-                                                               "width":  "auto",
-                                                               "edit":  {
-                                                                            "type":  "NumberSpinner",
-                                                                            "minimum":  0
-                                                                        }
-                                                           },
-                                                            {
-                                                                "name":  "WinterTemperature",
-                                                                "add":  0,
-                                                                "caption":  "Winter K",
-                                                                "visible":  false,
-                                                               "width":  "auto",
-                                                               "edit":  {
-                                                                            "type":  "NumberSpinner",
-                                                                            "minimum":  0
-                                                                        }
                                                            }
                                                        ],
                                    "values":  [
@@ -287,6 +204,7 @@
                                         {
                                             "type":  "List",
                                             "name":  "TargetProfiles",
+                                            "loadValuesFromConfiguration": false,
                                             "caption":  "Profile settings by light",
                                             "add":  true,
                                             "delete":  true,
@@ -311,7 +229,7 @@
                                                                 "caption":  "Color",
                                                                 "width":  "100px",
                                                                 "add":  -1,
-                                                                "edit":  { "type":  "SelectColor", "allowTransparent":  true }
+                                                                "edit":  { "type":  "SelectColor", "allowTransparent":  true, "transparentCaption": "Keep current color" }
                                                             },
                                                             {
                                                                 "name":  "Temperature",
@@ -326,7 +244,7 @@
                                                                 "width":  "150px",
                                                                 "add":  "Übernehmen",
                                                                 "save":  false,
-                                                                "onClick":  "DLT_CaptureCurrentColor($id, $TargetProfiles['TargetName'], $TargetProfiles['ProfileID']);"
+                                                                "onClick":  "$rows = []; foreach ($TargetProfiles as $row) { $rows[] = $row; } DLT_CaptureCurrentColor($id, $TargetProfiles['TargetName'], $TargetProfiles['ProfileID'], json_encode($rows));"
                                                             }
                                                         ],
                                             "values":  []
@@ -335,39 +253,35 @@
                      },
                      {
                          "type":  "ExpansionPanel",
-                         "caption":  "Scene integration",
-                         "items":  [
+                         "caption": "Scene integration",
+                         "items":  [ {"type":"Label","caption":"Ambient mode controls lights by lux and time. TV has priority and loads the selected TV scene; TV off resumes ambient mode. Other scenes pause ambient mode until Resume ambient control is pressed. Boolean triggers start their selected scene when true."},
                                        {
                                            "type":  "SelectInstance",
                                            "name":  "SceneControlID",
-                                           "caption":  "Optional Scene Control instance"
+                                           "caption": "Optional Scene Control instance", "onChange": "DLT_SelectSceneControl($id, $SceneControlID);"
                                        },
                                        {
                                            "type":  "SelectVariable",
                                            "name":  "ActiveSceneID",
-                                           "caption":  "Active scene variable"
+                                           "caption":  "Active scene variable",
+                                           "validVariableTypes": [1]
                                        },
                                        {
-                                           "type":  "NumberSpinner",
-                                           "name":  "OffScene",
-                                           "caption":  "Off scene number",
-                                           "minimum":  0
+                                           "type": "Select", "name": "OffScene", "caption": "Scene used when switching off", "options": []
                                        },
                                        {
                                            "type":  "SelectVariable",
                                            "name":  "TVVariableID",
-                                           "caption":  "Optional TV state (boolean)"
+                                           "caption":  "Optional TV state (boolean)",
+                                           "validVariableTypes": [0]
                                        },
                                        {
-                                           "type":  "NumberSpinner",
-                                           "name":  "TVScene",
-                                           "caption":  "Scene number when TV turns on",
-                                           "minimum":  0
+                                           "type": "Select", "name": "TVScene", "caption": "Scene used while TV is on", "options": []
                                        },
                                        {
                                            "type":  "List",
                                            "name":  "SceneTriggers",
-                                           "caption":  "Optional scene trigger variables",
+                                           "caption": "Boolean triggers for scenes",
                                            "add":  true,
                                            "delete":  true,
                                            "columns":  [
@@ -378,19 +292,15 @@
                                                                "width":  "auto",
                                                                "edit":  {
                                                                             "type":  "SelectVariable",
-                                                                            "requiredAction":  1
+                                                                            "validVariableTypes": [0]
                                                                         }
                                                            },
                                                            {
                                                                "name":  "SceneNumber",
                                                                "add":  1,
-                                                               "caption":  "Scene number",
+                                                               "caption": "Scene",
                                                                "width":  "120px",
-                                                               "edit":  {
-                                                                            "type":  "NumberSpinner",
-                                                                            "minimum":  1,
-                                                                            "maximum":  100
-                                                                        }
+                                                               "edit":  { "type": "Select", "options": [] }
                                                            }
                                                        ],
                                            "values":  [
@@ -415,11 +325,6 @@
                         "type":  "Button",
                         "caption":  "Evaluate now",
                         "onClick":  "DLT_EvaluateAndRefresh($id);"
-                    },
-                    {
-                        "type":  "Button",
-                        "caption":  "Find light variables",
-                        "onClick":  "DLT_DiscoverLights($id);"
                     }
                 ],
     "status":  [

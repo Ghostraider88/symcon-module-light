@@ -1,0 +1,7 @@
+Build 2 (2026-10-01)
+geändert: Eine Leuchteninstanz auswählen und deren Lichtvariablen erkennen statt Kategorien durchsuchen.
+korrigiert: RGB-Farbe und Kelvin bevorzugen; alternative Farbvariablen und Mired-Profile werden nicht versehentlich verwendet.
+korrigiert: Aktuelle Farbe numerisch übernehmen und bestehende Farbwerte korrekt im Profil anzeigen.
+geändert: Doppelte Saisonfelder entfernt; Farbe und Kelvin über Lichtwerte je Profil konfigurieren.
+neu: Echte Szenennamen zur Auswahl und automatische Zuordnung der aktiven Szene aus Scene Control.
+neu: Erklärung der Szenenpriorität und Rückkehr zur Umgebungssteuerung im Formular.

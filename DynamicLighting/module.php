@@ -26,7 +26,7 @@ class DynamicLighting extends IPSModuleStrict
         $this->RegisterPropertyInteger('DarkLux', 2500);
         $this->RegisterPropertyString('StartTime', '16:00');
         $this->RegisterPropertyString('EndTime', '23:00');
-        $this->RegisterPropertyInteger('DiscoveryCategoryID', 0);
+        $this->RegisterPropertyInteger('DiscoveryInstanceID', 0);
         $this->RegisterPropertyString('Profiles', json_encode([
             ['ProfileID' => self::PROFILE_SPRING, 'Name' => 'Frühling'],
             ['ProfileID' => self::PROFILE_SUMMER, 'Name' => 'Sommer'],
@@ -49,11 +49,7 @@ class DynamicLighting extends IPSModuleStrict
 
     public function GetConfigurationForm(): string
     {
-        $formJSON = file_get_contents(__DIR__ . '/form.json');
-        if ($formJSON === false) {
-            throw new RuntimeException('Unable to read Dynamic Lighting configuration form.');
-        }
-        $form = json_decode($formJSON, true, 512, JSON_THROW_ON_ERROR);
+        $form = $this->LoadForm();
         $profiles = $this->Profiles();
         $profileOptions = [];
         foreach ($profiles as $profile) {
@@ -76,51 +72,62 @@ class DynamicLighting extends IPSModuleStrict
         $this->SetSelectOptions($form['elements'], 'ActiveProfile', $profileOptions);
         $this->SetListColumnOptions($form['elements'], 'TargetProfiles', 'TargetName', $targetOptions);
         $this->SetListColumnOptions($form['elements'], 'TargetProfiles', 'ProfileID', $profileOptions);
+        $this->SetFormField($form['elements'], 'TargetProfiles', 'values', $this->TargetProfiles());
+        $sceneOptions = $this->SceneOptions($this->ReadPropertyInteger('SceneControlID'));
+        $this->SetSelectOptions($form['elements'], 'OffScene', $sceneOptions);
+        $this->SetSelectOptions($form['elements'], 'TVScene', $sceneOptions);
+        $this->SetListColumnOptions($form['elements'], 'SceneTriggers', 'SceneNumber', $sceneOptions);
         return json_encode($form, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
     }
 
-    public function DiscoverLights(): void
+    public function DiscoverLights(int $lightInstanceID = 0, string $currentTargetsJSON = ''): void
     {
-        $categoryID = $this->ReadPropertyInteger('DiscoveryCategoryID');
-        if ($categoryID <= 0 || !IPS_CategoryExists($categoryID)) {
-            $this->UpdateFormField('DiscoveryStatus', 'caption', $this->Translate('Choose a category to search.'));
+        if ($lightInstanceID === 0) {
+            $lightInstanceID = $this->ReadPropertyInteger('DiscoveryInstanceID');
+        }
+        if ($lightInstanceID <= 0 || !IPS_InstanceExists($lightInstanceID) || $lightInstanceID === $this->InstanceID) {
+            $this->UpdateFormField('DiscoveryStatus', 'caption', $this->Translate('Choose a light instance first.'));
             return;
         }
-
-        $discovered = [];
-        $luxCandidates = [];
-        $this->ScanCategory($categoryID, $discovered, $luxCandidates, 0);
-        $existing = $this->Targets();
-        $merged = [];
-        foreach ($discovered as $candidate) {
-            $key = (int)($candidate['SwitchID'] ?? 0) ?: ((int)($candidate['BrightnessID'] ?? 0) ?: (int)($candidate['ColorID'] ?? 0));
-            $found = null;
-            foreach ($existing as $index => $target) {
-                $targetKey = (int)($target['SwitchID'] ?? 0) ?: ((int)($target['BrightnessID'] ?? 0) ?: (int)($target['ColorID'] ?? 0));
-                if ($key > 0 && $targetKey === $key) {
-                    $found = $target;
-                    unset($existing[$index]);
+        $candidate = $this->ScanLightInstance($lightInstanceID);
+        if (max($candidate['SwitchID'], $candidate['BrightnessID'], $candidate['ColorID'], $candidate['TemperatureID']) === 0) {
+            $this->UpdateFormField('DiscoveryStatus', 'caption', $this->Translate('No supported light controls found in this instance.'));
+            return;
+        }
+        $existing = $currentTargetsJSON === '' ? $this->Targets() : json_decode($currentTargetsJSON, true, 512, JSON_THROW_ON_ERROR);
+        if (!is_array($existing)) throw new InvalidArgumentException('Invalid light target list.');
+        $updated = false;
+        foreach ($existing as &$target) {
+            foreach (['SwitchID', 'BrightnessID', 'ColorID', 'TemperatureID'] as $key) {
+                $variableID = (int)($target[$key] ?? 0);
+                if ($variableID > 0 && IPS_VariableExists($variableID)
+                    && IPS_GetObject($variableID)['ParentID'] === $lightInstanceID) {
+                    // Retain the user's name and brightness limits when refreshing mappings.
+                    foreach (['SwitchID', 'BrightnessID', 'BrightnessScale', 'ColorID', 'TemperatureID'] as $field) {
+                        $target[$field] = $candidate[$field];
+                    }
+                    $updated = true;
                     break;
                 }
             }
-            $merged[] = $found === null ? $candidate : array_replace($candidate, $found);
+            if ($updated) break;
         }
-        foreach ($existing as $target) {
-            $merged[] = $target;
+        unset($target);
+        if (!$updated) {
+            $existing[] = $candidate;
         }
-        $this->UpdateFormField('Targets', 'values', json_encode($merged, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE));
-        if ($this->ReadPropertyInteger('LuxVariableID') <= 0 && count($luxCandidates) === 1) {
-            $this->UpdateFormField('LuxVariableID', 'value', (string)$luxCandidates[0]);
-        }
-        $message = sprintf($this->Translate('Found %d light candidates and %d illuminance candidates.'), count($discovered), count($luxCandidates));
-        if (count($luxCandidates) > 1) {
-            $message .= ' ' . $this->Translate('Select the correct illuminance variable above.');
-        }
+        $this->UpdateFormField('Targets', 'values', json_encode(array_values($existing), JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE));
+        $message = sprintf($this->Translate('Light detected: %s. Switch: %d, brightness: %d, color: %d, Kelvin: %d. Apply changes to save.'),
+            $candidate['Name'], $candidate['SwitchID'], $candidate['BrightnessID'], $candidate['ColorID'], $candidate['TemperatureID']);
         $this->UpdateFormField('DiscoveryStatus', 'caption', $message);
     }
 
-    public function CaptureCurrentColor(string $targetName, string $profileID): void
+    public function CaptureCurrentColor(string $targetName, string $profileID, string $currentSettingsJSON = ''): void
     {
+        if ($targetName === '' || $profileID === '') {
+            $this->UpdateFormField('DiscoveryStatus', 'caption', $this->Translate('Select a light and a profile first.'));
+            return;
+        }
         $target = null;
         foreach ($this->Targets() as $candidate) {
             if ((string)($candidate['Name'] ?? '') === $targetName) {
@@ -133,26 +140,35 @@ class DynamicLighting extends IPSModuleStrict
             $this->UpdateFormField('DiscoveryStatus', 'caption', $this->Translate('The selected light has no color variable.'));
             return;
         }
-        $color = (int)GetValue($colorID);
-        $colorValue = sprintf('#%06X', max(0, min(0xFFFFFF, $color)));
-        $settings = $this->TargetProfiles();
+        $colorValue = $this->ColorToInteger(GetValue($colorID));
+        if ($colorValue === null) {
+            $this->UpdateFormField('DiscoveryStatus', 'caption', $this->Translate('The color variable does not contain a valid RGB color.'));
+            return;
+        }
+        $currentSettings = $currentSettingsJSON === '' ? null : json_decode($currentSettingsJSON, true, 512, JSON_THROW_ON_ERROR);
+        $currentRow = is_array($currentSettings) && !array_is_list($currentSettings) ? $currentSettings : [];
+        $currentRow['TargetName'] = $targetName;
+        $currentRow['ProfileID'] = $profileID;
+        $currentRow['ColorValue'] = $colorValue;
+        $settings = is_array($currentSettings) && array_is_list($currentSettings)
+            ? $this->NormalizeProfileRows($currentSettings) : $this->TargetProfiles();
         $updated = false;
         foreach ($settings as &$setting) {
             if ((string)($setting['TargetName'] ?? '') === $targetName && (string)($setting['ProfileID'] ?? '') === $profileID) {
-                $setting['ColorValue'] = $colorValue;
+                $setting = array_replace($setting, $currentRow);
                 $updated = true;
                 break;
             }
         }
         unset($setting);
         if (!$updated) {
-            $settings[] = [
+            $settings[] = array_replace([
                 'TargetName' => $targetName,
                 'ProfileID' => $profileID,
                 'ColorValue' => $colorValue,
                 'Temperature' => 0,
                 'Capture' => 'Übernehmen'
-            ];
+            ], $currentRow);
         }
         foreach ($settings as &$setting) {
             $setting['Capture'] = 'Übernehmen';
@@ -160,6 +176,74 @@ class DynamicLighting extends IPSModuleStrict
         unset($setting);
         $this->UpdateFormField('TargetProfiles', 'values', json_encode($settings, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE));
         $this->UpdateFormField('DiscoveryStatus', 'caption', sprintf($this->Translate('Captured current color for %s / %s.'), $targetName, $this->ProfileName($profileID)));
+    }
+
+    public function SelectSceneControl(int $sceneControlID): void
+    {
+        $options = $this->SceneOptions($sceneControlID);
+        $this->UpdateFormField('OffScene', 'options', json_encode($options, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE));
+        $this->UpdateFormField('TVScene', 'options', json_encode($options, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE));
+        $form = $this->LoadForm();
+        $this->SetListColumnOptions($form['elements'], 'SceneTriggers', 'SceneNumber', $options);
+        foreach ($form['elements'] as $panel) {
+            foreach ($panel['items'] ?? [] as $element) {
+                if (($element['name'] ?? '') === 'SceneTriggers') {
+                    $this->UpdateFormField('SceneTriggers', 'columns', json_encode($element['columns'], JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE));
+                }
+            }
+        }
+        $activeID = 0;
+        if ($sceneControlID > 0 && IPS_InstanceExists($sceneControlID)) {
+            foreach (IPS_GetChildrenIDs($sceneControlID) as $childID) {
+                $object = IPS_GetObject($childID);
+                if ($object['ObjectType'] === 2 && $object['ObjectIdent'] === 'ActiveScene') {
+                    $activeID = $childID;
+                    break;
+                }
+            }
+        }
+        $this->UpdateFormField('ActiveSceneID', 'value', (string)$activeID);
+    }
+
+    private function SceneOptions(int $sceneControlID): array
+    {
+        $options = [['caption' => $this->Translate('No scene'), 'value' => 0]];
+        if ($sceneControlID > 0 && IPS_InstanceExists($sceneControlID)
+            && (IPS_GetInstance($sceneControlID)['ModuleInfo']['ModuleName'] ?? '') === 'SceneControl') {
+            foreach (IPS_GetChildrenIDs($sceneControlID) as $childID) {
+                $object = IPS_GetObject($childID);
+                if ($object['ObjectType'] === 2 && preg_match('/^Scene([1-9][0-9]*)$/', $object['ObjectIdent'], $matches) === 1) {
+                    $options[] = ['caption' => $object['ObjectName'], 'value' => (int)$matches[1]];
+                }
+            }
+        }
+        usort($options, static fn (array $a, array $b): int => $a['value'] <=> $b['value']);
+        foreach ([$this->ReadPropertyInteger('OffScene'), $this->ReadPropertyInteger('TVScene')] as $number) {
+            if ($number > 0 && !in_array($number, array_column($options, 'value'), true)) {
+                $options[] = ['caption' => sprintf($this->Translate('Scene %d (select Scene Control)'), $number), 'value' => $number, 'enabled' => false];
+            }
+        }
+        return $options;
+    }
+
+    private function SetFormField(array &$elements, string $name, string $field, mixed $value): void
+    {
+        foreach ($elements as &$element) {
+            if (($element['name'] ?? '') === $name) $element[$field] = $value;
+            if (isset($element['items']) && is_array($element['items'])) {
+                $this->SetFormField($element['items'], $name, $field, $value);
+            }
+        }
+        unset($element);
+    }
+
+    private function LoadForm(): array
+    {
+        $formJSON = file_get_contents(__DIR__ . '/form.json');
+        if ($formJSON === false) throw new RuntimeException('Unable to read Dynamic Lighting configuration form.');
+        $form = json_decode($formJSON, true, 512, JSON_THROW_ON_ERROR);
+        if (!is_array($form) || !isset($form['elements']) || !is_array($form['elements'])) throw new RuntimeException('Invalid Dynamic Lighting configuration form.');
+        return $form;
     }
 
     public function DeleteProfile(string $profileID): void
@@ -368,18 +452,10 @@ class DynamicLighting extends IPSModuleStrict
             $id = (int)($target['ColorID'] ?? 0);
             $settings = $this->TargetProfile($target, $profileID);
             $colorValue = $settings['ColorValue'] ?? null;
-            if ($colorValue === null || $colorValue === '' || $colorValue === -1) {
-                $legacySeason = $this->LegacySeasonName($profileID);
-                $colorValue = $legacySeason === '' ? null : ($target[$legacySeason . 'Color'] ?? null);
-            }
             $color = $this->ColorToInteger($colorValue);
             if ($id > 0 && $color !== null && IPS_VariableExists($id)) RequestAction($id, $color);
             $id = (int)($target['TemperatureID'] ?? 0);
             $temperature = (int)($settings['Temperature'] ?? 0);
-            if ($temperature <= 0) {
-                $legacySeason = $this->LegacySeasonName($profileID);
-                $temperature = $legacySeason === '' ? 0 : (int)($target[$legacySeason . 'Temperature'] ?? 0);
-            }
             if ($id > 0 && $temperature > 0 && IPS_VariableExists($id)) RequestAction($id, $temperature);
         }
     }
@@ -543,86 +619,42 @@ class DynamicLighting extends IPSModuleStrict
         unset($element);
     }
 
-    private function ScanCategory(int $categoryID, array &$targets, array &$luxCandidates, int $depth): void
+    private function ScanLightInstance(int $lightInstanceID): array
     {
-        if ($depth > 20) {
-            return;
-        }
-        foreach (IPS_GetChildrenIDs($categoryID) as $childID) {
-            $object = IPS_GetObject($childID);
-            if ($object['ObjectType'] === 0) {
-                $this->ScanCategory($childID, $targets, $luxCandidates, $depth + 1);
-                continue;
-            }
-            if ($object['ObjectType'] === 2) {
-                $this->CollectIlluminanceCandidate($childID, $object, $luxCandidates);
-                continue;
-            }
-            if ($object['ObjectType'] !== 1) {
-                continue;
-            }
-
-            $candidate = [
-                'Name' => $object['ObjectName'],
-                'SwitchID' => 0,
-                'BrightnessID' => 0,
-                'BrightnessScale' => 100,
-                'MaxBrightness' => 100,
-                'MinBrightness' => 0,
-                'ColorID' => 0,
-                'TemperatureID' => 0
+        $candidate = [
+            'Name' => IPS_GetObject($lightInstanceID)['ObjectName'],
+            'SwitchID' => 0, 'BrightnessID' => 0, 'BrightnessScale' => 100,
+            'MaxBrightness' => 100, 'MinBrightness' => 0, 'ColorID' => 0, 'TemperatureID' => 0
+        ];
+        $scores = ['SwitchID' => 0, 'BrightnessID' => 0, 'ColorID' => 0, 'TemperatureID' => 0];
+        $children = IPS_GetChildrenIDs($lightInstanceID);
+        sort($children);
+        foreach ($children as $variableID) {
+            $object = IPS_GetObject($variableID);
+            if ($object['ObjectType'] !== 2) continue;
+            $variable = IPS_GetVariable($variableID);
+            if ((int)($variable['VariableAction'] ?? 0) <= 0 && (int)($variable['VariableCustomAction'] ?? 0) <= 0) continue;
+            $profile = strtolower((string)(($variable['VariableCustomProfile'] ?? '') ?: ($variable['VariableProfile'] ?? '')));
+            $ident = strtolower((string)$object['ObjectIdent']);
+            $type = (int)$variable['VariableType'];
+            $matches = [
+                'SwitchID' => $type === 0 ? (in_array($ident, ['state', 'power', 'switch'], true) ? 100 : (str_contains($profile, 'switch') ? 80 : 0)) : 0,
+                'BrightnessID' => in_array($type, [1, 2], true) ? ($ident === 'brightness' ? 100 : (str_contains($profile, 'intensity') ? 80 : 0)) : 0,
+                'ColorID' => $type === 1 ? (in_array($ident, ['color', 'color_rgb', 'rgb'], true) ? 100 : (str_contains($profile, 'hexcolor') ? 80 : 0)) : 0,
+                // Only use a Kelvin output. Mired outputs and presets cannot receive Kelvin values.
+                'TemperatureID' => $type === 1 ? (in_array($ident, ['color_temp_kelvin', 'temperature_kelvin'], true) ? 100 : (str_contains($profile, 'twcolor') ? 80 : 0)) : 0
             ];
-            foreach (IPS_GetChildrenIDs($childID) as $variableID) {
-                $variableObject = IPS_GetObject($variableID);
-                if ($variableObject['ObjectType'] !== 2) {
-                    continue;
-                }
-                $variable = IPS_GetVariable($variableID);
-                if ($variableObject['ObjectIsHidden']) {
-                    continue;
-                }
-                $this->CollectIlluminanceCandidate($variableID, $variableObject, $luxCandidates);
-                if ((int)($variable['VariableAction'] ?? 0) <= 0 && (int)($variable['VariableCustomAction'] ?? 0) <= 0) {
-                    continue;
-                }
-                $profile = strtolower((string)($variable['VariableProfile'] ?? $variable['VariableCustomProfile'] ?? ''));
-                $name = strtolower((string)$variableObject['ObjectName']);
-                $type = (int)$variable['VariableType'];
-                if ($type === 0 && (str_contains($profile, 'switch') || preg_match('/status|switch|power|ein|aus/', $name) === 1)) {
-                    $candidate['SwitchID'] = $variableID;
-                } elseif ($type !== 0 && (str_contains($profile, 'twcolor') || str_contains($profile, 'color_temp') || str_contains($name, 'farbtemperatur') || str_contains($name, 'kelvin'))) {
-                    $candidate['TemperatureID'] = $variableID;
-                } elseif ($type !== 0 && (str_contains($profile, 'hexcolor') || str_contains($name, 'farbe') || str_contains($name, 'color'))) {
-                    $candidate['ColorID'] = $variableID;
-                } elseif ($type !== 0 && (str_contains($profile, 'intensity') || str_contains($name, 'helligkeit') || str_contains($name, 'brightness') || str_contains($name, 'intensit'))) {
-                    $candidate['BrightnessID'] = $variableID;
-                    if (str_contains($profile, '.255')) {
-                        $candidate['BrightnessScale'] = 255;
+            foreach ($matches as $field => $score) {
+                if ($score > $scores[$field]) {
+                    $candidate[$field] = $variableID;
+                    $scores[$field] = $score;
+                    if ($field === 'BrightnessID') {
+                        $candidate['BrightnessScale'] = str_contains($profile, '.255') ? 255 : 100;
                     }
                 }
             }
-            if ($candidate['SwitchID'] > 0 || $candidate['BrightnessID'] > 0 || $candidate['ColorID'] > 0 || $candidate['TemperatureID'] > 0) {
-                $targets[] = $candidate;
-            }
         }
-    }
-
-    private function CollectIlluminanceCandidate(int $variableID, array $object, array &$luxCandidates): void
-    {
-        if ($object['ObjectIsHidden']) {
-            return;
-        }
-        $variable = IPS_GetVariable($variableID);
-        if (!in_array((int)$variable['VariableType'], [1, 2], true)) {
-            return;
-        }
-        $name = strtolower((string)$object['ObjectName']);
-        $profile = strtolower((string)($variable['VariableProfile'] ?? $variable['VariableCustomProfile'] ?? ''));
-        if (str_contains($name, 'lux') || str_contains($name, 'illuminance') || str_contains($name, 'beleuchtungsstärke') || str_contains($profile, 'illuminance') || (str_contains($name, 'helligkeit') && !str_contains($profile, 'intensity'))) {
-            if (!in_array($variableID, $luxCandidates, true)) {
-                $luxCandidates[] = $variableID;
-            }
-        }
+        return $candidate;
     }
 
     private function Profiles(): array
@@ -636,7 +668,38 @@ class DynamicLighting extends IPSModuleStrict
     private function TargetProfiles(): array
     {
         $rows = json_decode($this->ReadPropertyString('TargetProfiles'), true);
-        return is_array($rows) ? $rows : [];
+        $rows = $this->NormalizeProfileRows(is_array($rows) ? $rows : []);
+        // Offer legacy seasonal values in the profile table for the user to save.
+        foreach ($this->Targets() as $target) {
+            foreach ($this->Profiles() as $profile) {
+                $season = $this->LegacySeasonName((string)$profile['ProfileID']);
+                if ($season === '') continue;
+                $color = $this->ColorToInteger($target[$season . 'Color'] ?? null);
+                $temperature = (int)($target[$season . 'Temperature'] ?? 0);
+                if (($color === null || $color === 0) && $temperature <= 0) continue;
+                $found = false;
+                foreach ($rows as $row) {
+                    if (($row['TargetName'] ?? '') === ($target['Name'] ?? '') && ($row['ProfileID'] ?? '') === $profile['ProfileID']) {
+                        $found = true;
+                        break;
+                    }
+                }
+                if (!$found) $rows[] = ['TargetName' => (string)($target['Name'] ?? ''), 'ProfileID' => $profile['ProfileID'],
+                    'ColorValue' => $color ?? -1, 'Temperature' => $temperature, 'Capture' => $this->Translate('Take over current color')];
+            }
+        }
+        return $rows;
+    }
+
+    private function NormalizeProfileRows(array $rows): array
+    {
+        $rows = array_values(array_filter($rows, 'is_array'));
+        foreach ($rows as &$row) {
+            $row['ColorValue'] = $this->ColorToInteger($row['ColorValue'] ?? null) ?? -1;
+            $row['Capture'] = $this->Translate('Take over current color');
+        }
+        unset($row);
+        return $rows;
     }
 
     private function TargetProfile(array $target, string $profileID): array
@@ -653,16 +716,15 @@ class DynamicLighting extends IPSModuleStrict
     private function ColorToInteger(mixed $value): ?int
     {
         if (is_int($value) || is_float($value)) {
-            return max(0, min(0xFFFFFF, (int)$value));
+            return $value >= 0 && $value <= 0xFFFFFF ? (int)$value : null;
         }
         if (!is_string($value) || trim($value) === '') {
             return null;
         }
-        $value = ltrim(trim($value), '#');
-        if (str_starts_with(strtolower($value), '0x')) {
-            $value = substr($value, 2);
-        }
-        return ctype_xdigit($value) ? (int)hexdec($value) : null;
+        $value = trim($value);
+        if (preg_match('/^(?:#|0x)([0-9a-f]{6})$/i', $value, $matches) === 1) return (int)hexdec($matches[1]);
+        if (ctype_digit($value)) return $this->ColorToInteger((int)$value);
+        return preg_match('/^[0-9a-f]{6}$/i', $value) === 1 ? (int)hexdec($value) : null;
     }
 
     private function LegacySeasonName(string $profileID): string
