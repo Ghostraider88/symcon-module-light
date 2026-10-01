@@ -49,7 +49,11 @@ class DynamicLighting extends IPSModuleStrict
 
     public function GetConfigurationForm(): string
     {
-        $form = json_decode(parent::GetConfigurationForm(), true, 512, JSON_THROW_ON_ERROR);
+        $formJSON = file_get_contents(__DIR__ . '/form.json');
+        if ($formJSON === false) {
+            throw new RuntimeException('Unable to read Dynamic Lighting configuration form.');
+        }
+        $form = json_decode($formJSON, true, 512, JSON_THROW_ON_ERROR);
         $profiles = $this->Profiles();
         $profileOptions = [];
         foreach ($profiles as $profile) {
