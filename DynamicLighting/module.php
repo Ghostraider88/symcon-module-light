@@ -11,6 +11,10 @@ class DynamicLighting extends IPSModuleStrict
     private const OFF = 1;
     private const MANUAL = 2;
     private const TV = 3;
+    private const PROFILE_SPRING = '{4AD0B7A1-5A2B-4E53-A261-11E8FC522101}';
+    private const PROFILE_SUMMER = '{4AD0B7A1-5A2B-4E53-A261-11E8FC522102}';
+    private const PROFILE_AUTUMN = '{4AD0B7A1-5A2B-4E53-A261-11E8FC522103}';
+    private const PROFILE_WINTER = '{4AD0B7A1-5A2B-4E53-A261-11E8FC522104}';
 
     public function Create(): void
     {
@@ -24,12 +28,12 @@ class DynamicLighting extends IPSModuleStrict
         $this->RegisterPropertyString('EndTime', '23:00');
         $this->RegisterPropertyInteger('DiscoveryCategoryID', 0);
         $this->RegisterPropertyString('Profiles', json_encode([
-            ['Name' => 'Frühling'],
-            ['Name' => 'Sommer'],
-            ['Name' => 'Herbst'],
-            ['Name' => 'Winter']
+            ['ProfileID' => self::PROFILE_SPRING, 'Name' => 'Frühling'],
+            ['ProfileID' => self::PROFILE_SUMMER, 'Name' => 'Sommer'],
+            ['ProfileID' => self::PROFILE_AUTUMN, 'Name' => 'Herbst'],
+            ['ProfileID' => self::PROFILE_WINTER, 'Name' => 'Winter']
         ], JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE));
-        $this->RegisterPropertyString('ActiveProfile', 'Winter');
+        $this->RegisterPropertyString('ActiveProfile', self::PROFILE_WINTER);
         $this->RegisterPropertyString('TargetProfiles', '[]');
         // Kept for existing configurations; new configurations use Profiles and TargetProfiles.
         $this->RegisterPropertyString('Season', 'winter');
@@ -50,8 +54,9 @@ class DynamicLighting extends IPSModuleStrict
         $profileOptions = [];
         foreach ($profiles as $profile) {
             $name = trim((string)($profile['Name'] ?? ''));
-            if ($name !== '') {
-                $profileOptions[] = ['caption' => $name, 'value' => $name];
+            $profileID = (string)($profile['ProfileID'] ?? '');
+            if ($name !== '' && $profileID !== '') {
+                $profileOptions[] = ['caption' => $name, 'value' => $profileID];
             }
         }
         if ($profileOptions === []) {
@@ -66,7 +71,7 @@ class DynamicLighting extends IPSModuleStrict
         }
         $this->SetSelectOptions($form['elements'], 'ActiveProfile', $profileOptions);
         $this->SetListColumnOptions($form['elements'], 'TargetProfiles', 'TargetName', $targetOptions);
-        $this->SetListColumnOptions($form['elements'], 'TargetProfiles', 'ProfileName', $profileOptions);
+        $this->SetListColumnOptions($form['elements'], 'TargetProfiles', 'ProfileID', $profileOptions);
         return json_encode($form, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
     }
 
@@ -110,7 +115,7 @@ class DynamicLighting extends IPSModuleStrict
         $this->UpdateFormField('DiscoveryStatus', 'caption', $message);
     }
 
-    public function CaptureCurrentColor(string $targetName, string $profileName): void
+    public function CaptureCurrentColor(string $targetName, string $profileID): void
     {
         $target = null;
         foreach ($this->Targets() as $candidate) {
@@ -129,7 +134,7 @@ class DynamicLighting extends IPSModuleStrict
         $settings = $this->TargetProfiles();
         $updated = false;
         foreach ($settings as &$setting) {
-            if ((string)($setting['TargetName'] ?? '') === $targetName && (string)($setting['ProfileName'] ?? '') === $profileName) {
+            if ((string)($setting['TargetName'] ?? '') === $targetName && (string)($setting['ProfileID'] ?? '') === $profileID) {
                 $setting['ColorValue'] = $colorValue;
                 $updated = true;
                 break;
@@ -139,7 +144,7 @@ class DynamicLighting extends IPSModuleStrict
         if (!$updated) {
             $settings[] = [
                 'TargetName' => $targetName,
-                'ProfileName' => $profileName,
+                'ProfileID' => $profileID,
                 'ColorValue' => $colorValue,
                 'Temperature' => 0,
                 'Capture' => 'Übernehmen'
@@ -150,14 +155,14 @@ class DynamicLighting extends IPSModuleStrict
         }
         unset($setting);
         $this->UpdateFormField('TargetProfiles', 'values', json_encode($settings, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE));
-        $this->UpdateFormField('DiscoveryStatus', 'caption', sprintf($this->Translate('Captured current color for %s / %s.'), $targetName, $profileName));
+        $this->UpdateFormField('DiscoveryStatus', 'caption', sprintf($this->Translate('Captured current color for %s / %s.'), $targetName, $this->ProfileName($profileID)));
     }
 
-    public function DeleteProfile(string $profileName): void
+    public function DeleteProfile(string $profileID): void
     {
         $settings = array_values(array_filter(
             $this->TargetProfiles(),
-            static fn (array $setting): bool => (string)($setting['ProfileName'] ?? '') !== $profileName
+            static fn (array $setting): bool => (string)($setting['ProfileID'] ?? '') !== $profileID
         ));
         foreach ($settings as &$setting) {
             $setting['Capture'] = 'Übernehmen';
@@ -167,17 +172,18 @@ class DynamicLighting extends IPSModuleStrict
 
         $remainingProfiles = array_values(array_filter(
             $this->Profiles(),
-            static fn (array $profile): bool => (string)($profile['Name'] ?? '') !== $profileName
+            static fn (array $profile): bool => (string)($profile['ProfileID'] ?? '') !== $profileID
         ));
         $options = [];
         foreach ($remainingProfiles as $profile) {
             $name = trim((string)($profile['Name'] ?? ''));
-            if ($name !== '') {
-                $options[] = ['caption' => $name, 'value' => $name];
+            $id = (string)($profile['ProfileID'] ?? '');
+            if ($name !== '' && $id !== '') {
+                $options[] = ['caption' => $name, 'value' => $id];
             }
         }
         $this->UpdateFormField('ActiveProfile', 'options', json_encode($options, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE));
-        if ($this->ReadPropertyString('ActiveProfile') === $profileName) {
+        if ($this->ReadPropertyString('ActiveProfile') === $profileID) {
             $this->UpdateFormField('ActiveProfile', 'value', (string)($options[0]['value'] ?? ''));
         }
     }
@@ -342,7 +348,7 @@ class DynamicLighting extends IPSModuleStrict
     private function ApplyTargets(int $percent): void
     {
         $this->SetBuffer('OutputOff', '0');
-        $profileName = $this->ReadPropertyString('ActiveProfile');
+        $profileID = $this->ReadPropertyString('ActiveProfile');
         foreach ($this->Targets() as $target) {
             $maximum = max(1, min(100, (int)($target['MaxBrightness'] ?? 100)));
             $minimum = max(0, min($maximum, (int)($target['MinBrightness'] ?? 0)));
@@ -356,10 +362,10 @@ class DynamicLighting extends IPSModuleStrict
             if ($id > 0 && IPS_VariableExists($id)) RequestAction($id, $brightness > 0);
             if ($brightness === 0) continue;
             $id = (int)($target['ColorID'] ?? 0);
-            $settings = $this->TargetProfile($target, $profileName);
+            $settings = $this->TargetProfile($target, $profileID);
             $colorValue = $settings['ColorValue'] ?? null;
             if ($colorValue === null || $colorValue === '' || $colorValue === -1) {
-                $legacySeason = $this->LegacySeasonName($profileName);
+                $legacySeason = $this->LegacySeasonName($profileID);
                 $colorValue = $legacySeason === '' ? null : ($target[$legacySeason . 'Color'] ?? null);
             }
             $color = $this->ColorToInteger($colorValue);
@@ -367,7 +373,7 @@ class DynamicLighting extends IPSModuleStrict
             $id = (int)($target['TemperatureID'] ?? 0);
             $temperature = (int)($settings['Temperature'] ?? 0);
             if ($temperature <= 0) {
-                $legacySeason = $this->LegacySeasonName($profileName);
+                $legacySeason = $this->LegacySeasonName($profileID);
                 $temperature = $legacySeason === '' ? 0 : (int)($target[$legacySeason . 'Temperature'] ?? 0);
             }
             if ($id > 0 && $temperature > 0 && IPS_VariableExists($id)) RequestAction($id, $temperature);
@@ -439,7 +445,7 @@ class DynamicLighting extends IPSModuleStrict
             || $this->ReadPropertyInteger('BrightLux') < 0
             || $this->ReadPropertyInteger('DarkLux') <= $this->ReadPropertyInteger('BrightLux')
             || $this->Profiles() === []
-            || !in_array($this->ReadPropertyString('ActiveProfile'), array_column($this->Profiles(), 'Name'), true)
+            || !in_array($this->ReadPropertyString('ActiveProfile'), array_column($this->Profiles(), 'ProfileID'), true)
             || $this->ParseTime($this->ReadPropertyString('StartTime')) === null
             || $this->ParseTime($this->ReadPropertyString('EndTime')) === null) {
             return false;
@@ -618,7 +624,9 @@ class DynamicLighting extends IPSModuleStrict
     private function Profiles(): array
     {
         $rows = json_decode($this->ReadPropertyString('Profiles'), true);
-        return is_array($rows) ? array_values(array_filter($rows, static fn (mixed $row): bool => is_array($row) && trim((string)($row['Name'] ?? '')) !== '')) : [];
+        return is_array($rows) ? array_values(array_filter($rows, static fn (mixed $row): bool => is_array($row)
+            && trim((string)($row['Name'] ?? '')) !== ''
+            && trim((string)($row['ProfileID'] ?? '')) !== '')) : [];
     }
 
     private function TargetProfiles(): array
@@ -627,11 +635,11 @@ class DynamicLighting extends IPSModuleStrict
         return is_array($rows) ? $rows : [];
     }
 
-    private function TargetProfile(array $target, string $profileName): array
+    private function TargetProfile(array $target, string $profileID): array
     {
         foreach ($this->TargetProfiles() as $setting) {
             if ((string)($setting['TargetName'] ?? '') === (string)($target['Name'] ?? '')
-                && (string)($setting['ProfileName'] ?? '') === $profileName) {
+                && (string)($setting['ProfileID'] ?? '') === $profileID) {
                 return $setting;
             }
         }
@@ -653,15 +661,25 @@ class DynamicLighting extends IPSModuleStrict
         return ctype_xdigit($value) ? (int)hexdec($value) : null;
     }
 
-    private function LegacySeasonName(string $profileName): string
+    private function LegacySeasonName(string $profileID): string
     {
-        return match ($profileName) {
-            'Frühling', 'Spring' => 'Spring',
-            'Sommer', 'Summer' => 'Summer',
-            'Herbst', 'Autumn' => 'Autumn',
-            'Winter' => 'Winter',
+        return match ($profileID) {
+            self::PROFILE_SPRING => 'Spring',
+            self::PROFILE_SUMMER => 'Summer',
+            self::PROFILE_AUTUMN => 'Autumn',
+            self::PROFILE_WINTER => 'Winter',
             default => ''
         };
+    }
+
+    private function ProfileName(string $profileID): string
+    {
+        foreach ($this->Profiles() as $profile) {
+            if ((string)($profile['ProfileID'] ?? '') === $profileID) {
+                return (string)($profile['Name'] ?? '');
+            }
+        }
+        return $profileID;
     }
     private function Targets(): array
     {

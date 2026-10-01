@@ -1,6 +1,6 @@
 # Dynamic Lighting
 
-General-purpose light automation for IP-Symcon 8.1 and later. Configure one instance per room, area, floor, or outdoor zone.
+General-purpose light automation for IP-Symcon 9.1 and later. Configure one instance per room, area, floor, or outdoor zone.
 
 - Ambient control uses a selected illuminance variable, optional enable boolean, configurable lux curve, and daily time window.
 - Choose a room or area category and discover candidate light outputs from their Symcon profiles, including `~Switch`, `~Intensity`, `~HexColor`, and `~TWColor`. Review discovered targets before applying the configuration.

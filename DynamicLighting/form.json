@@ -51,9 +51,16 @@
                                             "caption":  "User-defined profiles",
                                             "add":  true,
                                             "delete":  true,
-                                            "onDelete":  "DLT_DeleteProfile($id, $Profiles['Name']);",
+                                            "onDelete":  "DLT_DeleteProfile($id, $Profiles['ProfileID']);",
                                             "rowCount":  5,
                                             "columns":  [
+                                                            {
+                                                                "name": "ProfileID",
+                                                                "caption": "Profile ID",
+                                                                "add": { "strategy": "guid" },
+                                                                "visible": false,
+                                                                "edit": { "type": "ValidationTextBox", "disabled": true }
+                                                            },
                                                             {
                                                                 "name":  "Name",
                                                                 "caption":  "Profile name",
@@ -293,7 +300,7 @@
                                                                 "edit":  { "type":  "Select", "options":  [] }
                                                             },
                                                             {
-                                                                "name":  "ProfileName",
+                                                                "name":  "ProfileID",
                                                                 "caption":  "Profile",
                                                                 "width":  "auto",
                                                                 "add":  "",
@@ -319,7 +326,7 @@
                                                                 "width":  "150px",
                                                                 "add":  "Übernehmen",
                                                                 "save":  false,
-                                                                "onClick":  "DLT_CaptureCurrentColor($id, $TargetProfiles['TargetName'], $TargetProfiles['ProfileName']);"
+                                                                "onClick":  "DLT_CaptureCurrentColor($id, $TargetProfiles['TargetName'], $TargetProfiles['ProfileID']);"
                                                             }
                                                         ],
                                             "values":  []
