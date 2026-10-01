@@ -1,12 +1,10 @@
 {
-    "id": "{00000000-0000-0000-0000-000000000001}",
-    "author": "DEIN NAME",
-    "name": "My Symcon Library",
-    "url": "https://github.com/DEIN-USER/DEIN-REPO",
-    "compatibility": {
-        "version": "8.1"
-    },
+    "id": "{D2D9130C-7895-4D9A-A0E3-F2173E696110}",
+    "author": "Torsten",
+    "name": "Symcon Light",
+    "url": "",
+    "compatibility": { "version": "8.1" },
     "version": "1.0",
     "build": 1,
-    "date": 0
+    "date": 1790890200
 }

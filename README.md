@@ -1,46 +1,15 @@
-# My Symcon Library
+# Symcon Light
 
-[![Check Style](https://github.com/DEIN-USER/DEIN-REPO/actions/workflows/style.yml/badge.svg)](https://github.com/DEIN-USER/DEIN-REPO/actions/workflows/style.yml)
-[![Run Tests](https://github.com/DEIN-USER/DEIN-REPO/actions/workflows/tests.yml/badge.svg)](https://github.com/DEIN-USER/DEIN-REPO/actions/workflows/tests.yml)
+IP-Symcon modules for configurable light control.
 
-Bibliothek mit Custom-Modulen für IP-Symcon.
+## Included modules
 
-## Enthaltene Module
+| Module | Description | Documentation |
+| --- | --- | --- |
+| Dynamic Lighting | Ambient, seasonal, multi-capability light control with scene integration | [Module README](DynamicLighting/README.md) |
+| MyModule | Visualization example from the development template | [Source](MyModule/module.php) |
 
-| Modul | Beschreibung | Doku |
-|-------|--------------|------|
-| MyModule | [Kurzbeschreibung] | [README](MyModule/README.md) |
+## Requirements
 
-## Installation
-
-Über das Module Control (Kerninstanz) die Repository-URL hinzufügen:
-
-https://github.com/DEIN-USER/DEIN-REPO
-
-## Voraussetzungen
-
-* IP-Symcon ab Version 8.1
-
-## Entwicklung
-
-Neue Module verwenden den verbindlichen Visu-Stil aus
-[docs/VISU_STYLE.md](docs/VISU_STYLE.md) und den wiederverwendbaren Baukasten
-[libs/VisuStyle.php](libs/VisuStyle.php). Für Zustände, Diagnose und
-fähigkeitsabhängige Bedienfelder stehen zusätzlich folgende Bausteine bereit:
-
-- [libs/VisuState.php](libs/VisuState.php)
-- [libs/VisuDiagnostic.php](libs/VisuDiagnostic.php)
-- [libs/VisuCapability.php](libs/VisuCapability.php)
-
-Das Beispielmodul enthält eine Kachel mit Status, Aktion, Selbsttest,
-Capability-Prüfung und Live-Aktualisierung.
-
-Alle verbindlichen Struktur- und Codiervorgaben für die Modulentwicklung stehen in
-[AGENTS.md](AGENTS.md). Diese Datei dient zugleich als Kontext für Codex.
-
-Optionale Ausbauideen für das Template (kein verbindliches Regelwerk) sammelt
-[docs/template-backlog.md](docs/template-backlog.md).
-
-## Lizenz
-
-[MIT / nach Wahl eintragen]
+- IP-Symcon 8.1 or later.
+- See [AGENTS.md](AGENTS.md) for repository structure and development conventions.

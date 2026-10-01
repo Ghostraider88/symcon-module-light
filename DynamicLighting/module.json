@@ -1,0 +1,15 @@
+{
+    "id": "{52B65A85-60AD-43A1-8B1B-54B1F1E870D2}",
+    "name": "Dynamic Lighting",
+    "type": 3,
+    "vendor": "Symcon Light",
+    "aliases": [
+        "Dynamic Light Control",
+        "Ambient Lighting"
+    ],
+    "url": "",
+    "parentRequirements": [],
+    "childRequirements": [],
+    "implemented": [],
+    "prefix": "DLT"
+}

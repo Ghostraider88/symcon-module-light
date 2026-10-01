@@ -1,0 +1,340 @@
+{
+    "elements":  [
+                     {
+                         "type":  "ExpansionPanel",
+                         "caption":  "Ambient control",
+                         "items":  [
+                                       {
+                                           "type":  "SelectVariable",
+                                           "name":  "LuxVariableID",
+                                           "caption":  "Illuminance variable",
+                                           "required":  true
+                                       },
+                                       {
+                                           "type":  "SelectVariable",
+                                           "name":  "EnableVariableID",
+                                           "caption":  "Optional enable variable"
+                                       },
+                                       {
+                                           "type":  "NumberSpinner",
+                                           "name":  "BrightLux",
+                                           "caption":  "Full brightness at or below (lux)",
+                                           "minimum":  0,
+                                           "maximum":  100000
+                                       },
+                                       {
+                                           "type":  "NumberSpinner",
+                                           "name":  "DarkLux",
+                                           "caption":  "Off at or above (lux)",
+                                           "minimum":  1,
+                                           "maximum":  100000
+                                       },
+                                       {
+                                           "type":  "ValidationTextBox",
+                                           "name":  "StartTime",
+                                           "caption":  "Daily start time"
+                                       },
+                                       {
+                                           "type":  "ValidationTextBox",
+                                           "name":  "EndTime",
+                                           "caption":  "Daily end time"
+                                       },
+                                       {
+                                           "type":  "Select",
+                                           "name":  "Season",
+                                           "caption":  "Seasonal profile",
+                                           "options":  [
+                                                           {
+                                                               "caption":  "Spring",
+                                                               "value":  "spring"
+                                                           },
+                                                           {
+                                                               "caption":  "Summer",
+                                                               "value":  "summer"
+                                                           },
+                                                           {
+                                                               "caption":  "Autumn",
+                                                               "value":  "autumn"
+                                                           },
+                                                           {
+                                                               "caption":  "Winter",
+                                                               "value":  "winter"
+                                                           }
+                                                       ]
+                                       }
+                                   ]
+                     },
+                     {
+                         "type":  "ExpansionPanel",
+                         "caption":  "Light targets",
+                         "items":  [
+                                       {
+                                           "type":  "List",
+                                           "name":  "Targets",
+                                           "caption":  "Configured lights",
+                                           "add":  true,
+                                           "delete":  true,
+                                           "multiAdd":  true,
+                                           "rowCount":  20,
+                                           "columns":  [
+                                                           {
+                                                               "name":  "Name",
+                                                               "caption":  "Name",
+                                                               "width":  "auto",
+                                                               "edit":  {
+                                                                            "type":  "ValidationTextBox"
+                                                                        }
+                                                           },
+                                                           {
+                                                               "name":  "SwitchID",
+                                                               "caption":  "Switch",
+                                                               "width":  "auto",
+                                                               "edit":  {
+                                                                            "type":  "SelectVariable",
+                                                                            "requiredAction":  1
+                                                                        }
+                                                           },
+                                                           {
+                                                               "name":  "BrightnessID",
+                                                               "caption":  "Brightness",
+                                                               "width":  "auto",
+                                                               "edit":  {
+                                                                            "type":  "SelectVariable",
+                                                                            "requiredAction":  1
+                                                                        }
+                                                           },
+                                                           {
+                                                               "name":  "BrightnessScale",
+                                                               "caption":  "Scale",
+                                                               "width":  "auto",
+                                                               "edit":  {
+                                                                            "type":  "Select",
+                                                                            "options":  [
+                                                                                            {
+                                                                                                "caption":  "0–100",
+                                                                                                "value":  100
+                                                                                            },
+                                                                                            {
+                                                                                                "caption":  "0–255",
+                                                                                                "value":  255
+                                                                                            }
+                                                                                        ]
+                                                                        }
+                                                           },
+                                                           {
+                                                               "name":  "MaxBrightness",
+                                                               "caption":  "Max %",
+                                                               "width":  "auto",
+                                                               "edit":  {
+                                                                            "type":  "NumberSpinner",
+                                                                            "minimum":  1,
+                                                                            "maximum":  100
+                                                                        }
+                                                           },
+                                                           {
+                                                               "name":  "MinBrightness",
+                                                               "caption":  "Start %",
+                                                               "width":  "auto",
+                                                               "edit":  {
+                                                                            "type":  "NumberSpinner",
+                                                                            "minimum":  0,
+                                                                            "maximum":  100
+                                                                        }
+                                                           },
+                                                           {
+                                                               "name":  "ColorID",
+                                                               "caption":  "Color",
+                                                               "width":  "auto",
+                                                               "edit":  {
+                                                                            "type":  "SelectVariable",
+                                                                            "requiredAction":  1
+                                                                        }
+                                                           },
+                                                           {
+                                                               "name":  "TemperatureID",
+                                                               "caption":  "Color temp.",
+                                                               "width":  "auto",
+                                                               "edit":  {
+                                                                            "type":  "SelectVariable",
+                                                                            "requiredAction":  1
+                                                                        }
+                                                           },
+                                                           {
+                                                               "name":  "SpringColor",
+                                                               "caption":  "Spring color",
+                                                               "width":  "auto",
+                                                               "edit":  {
+                                                                            "type":  "NumberSpinner",
+                                                                            "minimum":  0
+                                                                        }
+                                                           },
+                                                           {
+                                                               "name":  "SummerColor",
+                                                               "caption":  "Summer color",
+                                                               "width":  "auto",
+                                                               "edit":  {
+                                                                            "type":  "NumberSpinner",
+                                                                            "minimum":  0
+                                                                        }
+                                                           },
+                                                           {
+                                                               "name":  "AutumnColor",
+                                                               "caption":  "Autumn color",
+                                                               "width":  "auto",
+                                                               "edit":  {
+                                                                            "type":  "NumberSpinner",
+                                                                            "minimum":  0
+                                                                        }
+                                                           },
+                                                           {
+                                                               "name":  "WinterColor",
+                                                               "caption":  "Winter color",
+                                                               "width":  "auto",
+                                                               "edit":  {
+                                                                            "type":  "NumberSpinner",
+                                                                            "minimum":  0
+                                                                        }
+                                                           },
+                                                           {
+                                                               "name":  "SpringTemperature",
+                                                               "caption":  "Spring K",
+                                                               "width":  "auto",
+                                                               "edit":  {
+                                                                            "type":  "NumberSpinner",
+                                                                            "minimum":  0
+                                                                        }
+                                                           },
+                                                           {
+                                                               "name":  "SummerTemperature",
+                                                               "caption":  "Summer K",
+                                                               "width":  "auto",
+                                                               "edit":  {
+                                                                            "type":  "NumberSpinner",
+                                                                            "minimum":  0
+                                                                        }
+                                                           },
+                                                           {
+                                                               "name":  "AutumnTemperature",
+                                                               "caption":  "Autumn K",
+                                                               "width":  "auto",
+                                                               "edit":  {
+                                                                            "type":  "NumberSpinner",
+                                                                            "minimum":  0
+                                                                        }
+                                                           },
+                                                           {
+                                                               "name":  "WinterTemperature",
+                                                               "caption":  "Winter K",
+                                                               "width":  "auto",
+                                                               "edit":  {
+                                                                            "type":  "NumberSpinner",
+                                                                            "minimum":  0
+                                                                        }
+                                                           }
+                                                       ],
+                                           "values":  [
+
+                                                      ]
+                                       }
+                                   ]
+                     },
+                     {
+                         "type":  "ExpansionPanel",
+                         "caption":  "Scene integration",
+                         "items":  [
+                                       {
+                                           "type":  "SelectInstance",
+                                           "name":  "SceneControlID",
+                                           "caption":  "Optional Scene Control instance"
+                                       },
+                                       {
+                                           "type":  "SelectVariable",
+                                           "name":  "ActiveSceneID",
+                                           "caption":  "Active scene variable"
+                                       },
+                                       {
+                                           "type":  "NumberSpinner",
+                                           "name":  "OffScene",
+                                           "caption":  "Off scene number",
+                                           "minimum":  0
+                                       },
+                                       {
+                                           "type":  "SelectVariable",
+                                           "name":  "TVVariableID",
+                                           "caption":  "Optional TV state (boolean)"
+                                       },
+                                       {
+                                           "type":  "NumberSpinner",
+                                           "name":  "TVScene",
+                                           "caption":  "Scene number when TV turns on",
+                                           "minimum":  0
+                                       },
+                                       {
+                                           "type":  "List",
+                                           "name":  "SceneTriggers",
+                                           "caption":  "Optional scene trigger variables",
+                                           "add":  true,
+                                           "delete":  true,
+                                           "columns":  [
+                                                           {
+                                                               "name":  "VariableID",
+                                                               "caption":  "Boolean trigger",
+                                                               "width":  "auto",
+                                                               "edit":  {
+                                                                            "type":  "SelectVariable",
+                                                                            "requiredAction":  1
+                                                                        }
+                                                           },
+                                                           {
+                                                               "name":  "SceneNumber",
+                                                               "caption":  "Scene number",
+                                                               "width":  "120px",
+                                                               "edit":  {
+                                                                            "type":  "NumberSpinner",
+                                                                            "minimum":  1,
+                                                                            "maximum":  100
+                                                                        }
+                                                           }
+                                                       ],
+                                           "values":  [
+
+                                                      ]
+                                       }
+                                   ]
+                     }
+                 ],
+    "actions":  [
+                    {
+                        "type":  "Button",
+                        "caption":  "Resume ambient control",
+                        "onClick":  "DLT_ResumeAmbient($id);"
+                    },
+                    {
+                        "type":  "Button",
+                        "caption":  "Switch off",
+                        "onClick":  "DLT_SwitchOff($id);"
+                    },
+                    {
+                        "type":  "Button",
+                        "caption":  "Evaluate now",
+                        "onClick":  "DLT_EvaluateAndRefresh($id);"
+                    }
+                ],
+    "status":  [
+                   {
+                       "code":  102,
+                       "icon":  "active",
+                       "caption":  "Ready"
+                   },
+                   {
+                       "code":  104,
+                       "icon":  "inactive",
+                       "caption":  "Configure the illuminance input"
+                   },
+                   {
+                       "code":  201,
+                       "icon":  "error",
+                       "caption":  "Configuration error"
+                   }
+               ]
+}
