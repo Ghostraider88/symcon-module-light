@@ -37,9 +37,12 @@ class DynamicLighting extends IPSModuleStrict
     {
         parent::ApplyChanges();
         if ($this->RegisterVariableString('Status', $this->Translate('Status'), '', 10)) $this->SetValue('Status', '');
-        if ($this->RegisterVariableFloat('Illuminance', $this->Translate('Current illuminance'), ['PRESENTATION' => VARIABLE_PRESENTATION_VALUE_PRESENTATION, 'SUFFIX' => ' lx', 'DIGITS' => 0], 20)) $this->SetValue('Illuminance', 0.0);
-        if ($this->RegisterVariableInteger('CalculatedBrightness', $this->Translate('Calculated brightness'), ['PRESENTATION' => VARIABLE_PRESENTATION_VALUE_PRESENTATION, 'SUFFIX' => ' %', 'MIN' => 0, 'MAX' => 100, 'DIGITS' => 0], 30)) $this->SetValue('CalculatedBrightness', 0);
-        if ($this->RegisterVariableInteger('Mode', $this->Translate('Mode'), [
+        if ($this->RegisterVariableFloat('Illuminance', $this->Translate('Current illuminance'), '', 20)) $this->SetValue('Illuminance', 0.0);
+        IPS_SetVariableCustomPresentation($this->GetIDForIdent('Illuminance'), ['PRESENTATION' => VARIABLE_PRESENTATION_VALUE_PRESENTATION, 'SUFFIX' => ' lx', 'DIGITS' => 0]);
+        if ($this->RegisterVariableInteger('CalculatedBrightness', $this->Translate('Calculated brightness'), '', 30)) $this->SetValue('CalculatedBrightness', 0);
+        IPS_SetVariableCustomPresentation($this->GetIDForIdent('CalculatedBrightness'), ['PRESENTATION' => VARIABLE_PRESENTATION_VALUE_PRESENTATION, 'SUFFIX' => ' %', 'MIN' => 0, 'MAX' => 100, 'DIGITS' => 0]);
+        if ($this->RegisterVariableInteger('Mode', $this->Translate('Mode'), '', 40)) $this->SetValue('Mode', self::AMBIENT);
+        IPS_SetVariableCustomPresentation($this->GetIDForIdent('Mode'), [
             'PRESENTATION' => VARIABLE_PRESENTATION_ENUMERATION,
             'OPTIONS' => [
                 ['Value' => self::AMBIENT, 'Caption' => $this->Translate('Ambient'), 'IconValue' => '', 'IconActive' => false, 'Color' => -1],
@@ -47,7 +50,7 @@ class DynamicLighting extends IPSModuleStrict
                 ['Value' => self::MANUAL, 'Caption' => $this->Translate('Manual scene'), 'IconValue' => '', 'IconActive' => false, 'Color' => -1],
                 ['Value' => self::TV, 'Caption' => $this->Translate('TV scene'), 'IconValue' => '', 'IconActive' => false, 'Color' => -1]
             ], 'DISPLAY' => 2, 'LAYOUT' => 1
-        ], 40)) $this->SetValue('Mode', self::AMBIENT);
+        ]);
         $this->MaintainAction('Mode', true);
         $this->RegisterMessage($this->GetIDForIdent('Mode'), VM_UPDATE);
         foreach ([$this->ReadPropertyInteger('LuxVariableID'), $this->ReadPropertyInteger('EnableVariableID'), $this->ReadPropertyInteger('TVVariableID'), $this->ReadPropertyInteger('ActiveSceneID')] as $id) {
