@@ -8,6 +8,11 @@ class IPSModuleStrict
     public int $InstanceID = 24129;
     public array $properties = [];
     public array $formUpdates = [];
+    public array $buffers = [];
+    public array $values = [];
+    protected function GetBuffer(string $name): string { return $this->buffers[$name] ?? ''; }
+    protected function SetBuffer(string $name, string $value): void { $this->buffers[$name] = $value; }
+    protected function SetValue(string $name, mixed $value): void { $this->values[$name] = $value; }
 
     protected function ReadPropertyString(string $name): string
     {
@@ -129,20 +134,50 @@ check(field($form['elements'], 'DiscoveryInstanceID')['type'] === 'SelectInstanc
 check(field($form['elements'], 'TVScene')['options'][5]['caption'] === 'Fernsehen', 'TV selector must use actual scene names');
 $module->SelectSceneControl(41254);
 check($module->formUpdates['ActiveSceneID']['value'] === '44543', 'Scene selection must discover ActiveScene by ident');
-check(field($form['elements'], 'SceneControlID')['type'] === 'Select', 'Scene Control must not use the failing object-tree picker');
-check(field($form['elements'], 'SceneControlID')['options'][1] === ['caption' => 'Beleuchtung (41254)', 'value' => 41254], 'Scene Control choices must identify existing controllers');
+check(field($form['elements'], 'SceneControlID')['type'] === 'SelectInstance', 'Scene Control must use the requested instance selector');
+check(!isset(field($form['elements'], 'SceneControlID')['onChange']), 'Scene loading must not update form fields while the instance picker is open');
+check(field($form['elements'], 'ActiveSceneID')['validVariableTypes'] === [3], 'Active scene selection must require a string variable');
 $module->properties['SceneControlID'] = 1;
 $staleForm = json_decode($module->GetConfigurationForm(), true, 512, JSON_THROW_ON_ERROR);
 $controllerField = field($staleForm['elements'], 'SceneControlID');
-check($controllerField['options'][2]['value'] === 1 && $controllerField['options'][2]['enabled'] === false, 'Missing ID 1 must remain a disabled label without an object lookup');
+check(field($staleForm['elements'], 'ResetSceneControlSelection')['visible'] === true, 'An invalid saved ID must offer a reset outside the object picker');
 check($module->properties['SceneControlID'] === 1, 'Opening the form must not rewrite user properties');
 $rejected = false;
 try { $module->SelectSceneControl(1); } catch (InvalidArgumentException $exception) { $rejected = true; }
 check($rejected, 'Stale scene controller callbacks must be rejected');
 $module->SelectSceneControl(0);
 check($module->formUpdates['ActiveSceneID']['value'] === '0', 'Disabling Scene Control must clear the suggested scene variable');
+check($module->formUpdates['SceneControlID']['value'] === '0', 'Reset must clear the invalid controller in the form');
 $module->SelectSceneControl(41254);
 check($module->formUpdates['ActiveSceneID']['value'] === '44543', 'Valid selection must recover from an invalid saved controller');
+$module->properties['SceneControlID'] = 41254;
+$resolveScene = new ReflectionMethod(DynamicLighting::class, 'ActiveSceneNumber');
+check($resolveScene->invoke($module, 'Abendessen') === 3, 'Resolve a scene name to its actual scene number');
+check($resolveScene->invoke($module, 'Unbekannt') === null, 'Unknown scene must not be treated as a scene number');
+check($resolveScene->invoke($module, '5') === null, 'Do not cast numeric-looking scene names to integers');
+$handleScene = new ReflectionMethod(DynamicLighting::class, 'HandleActiveScene');
+$module->values['Mode'] = 0;
+$module->buffers['RequestedScene'] = '3';
+$module->buffers['RequestedSceneUntil'] = (string)(time() + 30);
+$handleScene->invoke($module, 'Unbekannt');
+check($module->values['Mode'] === 0 && $module->buffers['RequestedScene'] === '3', 'An intermediate unknown scene must preserve pending confirmation');
+$handleScene->invoke($module, 'Abendessen');
+check($module->values['Mode'] === 0 && $module->buffers['RequestedScene'] === '', 'Own scene confirmation must not create a manual override');
+$handleScene->invoke($module, 'Fernsehen');
+check($module->values['Mode'] === 2, 'An externally selected TV scene must pause ambient control');
+$module->values['Mode'] = 0;
+$module->buffers['RequestedScene'] = '3';
+$module->buffers['RequestedSceneUntil'] = (string)(time() - 1);
+$handleScene->invoke($module, 'Abendessen');
+check($module->values['Mode'] === 2, 'Expired command confirmation must not hide an external scene');
+$variables[46236] = ['VariableType' => 2];
+$variables[44543] = ['VariableType' => 3];
+$module->properties += ['LuxVariableID' => 46236, 'ActiveSceneID' => 44543, 'ActiveProfile' => 'summer-profile',
+    'BrightLux' => 300, 'DarkLux' => 2500, 'StartTime' => '16:00', 'EndTime' => '23:00', 'SceneTriggers' => '[]'];
+$valid = new ReflectionMethod(DynamicLighting::class, 'ConfigurationIsValid');
+check($valid->invoke($module) === true, 'A String ActiveScene must pass configuration validation');
+$variables[44543]['VariableType'] = 1;
+check($valid->invoke($module) === false, 'An Integer ActiveScene must fail configuration validation');
 
 $convert = new ReflectionMethod(DynamicLighting::class, 'ColorToInteger');
 foreach ([16711680, '#FF0000', '0xFF0000', 'FF0000', '16711680'] as $value) check($convert->invoke($module, $value) === 16711680, 'RGB input conversion');

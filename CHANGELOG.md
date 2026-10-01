@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.1 – Build 4 – 2026-10-01
+
+- Restore the Scene Control instance picker, restricted to compatible modules. Load scenes via a separate button after selection.
+- Provide an explicit form reset for unavailable saved instance selections.
+- Correct ActiveScene selection and configuration validation to require String; resolve scene names rather than casting them to integers.
+- Preserve pending command confirmation across unknown scene states and distinguish own confirmations from external scene changes.
+
 ## 1.1 – Build 3 – 2026-10-01
 
 - Replace the Scene Control object-tree picker with a dropdown of existing Scene Control instances to avoid the console's "Node does not exist - Get Parent" error in that dialog.

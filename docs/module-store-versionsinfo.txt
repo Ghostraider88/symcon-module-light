@@ -1,3 +1,8 @@
+Build 4 (2026-10-01)
+geändert: Scene Control wieder per Instanzauswahl wählen und die Szenen anschließend per Button laden.
+neu: Ungültige gespeicherte Instanzauswahl außerhalb des Baumdialogs zurücksetzen.
+korrigiert: Aktive Szene als String akzeptieren und Szenennamen auswerten; eigene Szenenbestätigungen und unbekannte Zwischenzustände berücksichtigen.
+
 Build 3 (2026-10-01)
 korrigiert: Scene Control über eine Liste vorhandener Instanzen auswählen; der fehlerhafte Baumdialog der Konsole wird umgangen.
 korrigiert: Ungültige gespeicherte Scene-Control-IDs werden als nicht verfügbar angezeigt und können neu zugeordnet werden.

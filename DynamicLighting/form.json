@@ -256,17 +256,29 @@
                          "caption": "Scene integration",
                          "items":  [ {"type":"Label","caption":"Ambient mode controls lights by lux and time. TV has priority and loads the selected TV scene; TV off resumes ambient mode. Other scenes pause ambient mode until Resume ambient control is pressed. Boolean triggers start their selected scene when true."},
                                        {
-                                           "type":  "Select",
+                                           "type":  "SelectInstance",
                                            "name":  "SceneControlID",
                                            "value": 0,
-                                           "options": [],
-                                           "caption": "Optional Scene Control instance", "onChange": "DLT_SelectSceneControl($id, $SceneControlID);"
+                                           "validModules": ["{87F46796-CC43-442D-94FD-AAA0BD8D9F54}"],
+                                           "caption": "Optional Scene Control instance"
+                                       },
+                                       {
+                                           "type": "Button",
+                                           "caption": "Load scenes from selected instance",
+                                           "onClick": "DLT_SelectSceneControl($id, $SceneControlID);"
+                                       },
+                                       {
+                                           "type": "Button",
+                                           "name": "ResetSceneControlSelection",
+                                           "caption": "Clear unavailable Scene Control selection",
+                                           "visible": false,
+                                           "onClick": "DLT_SelectSceneControl($id, 0);"
                                        },
                                        {
                                            "type":  "SelectVariable",
                                            "name":  "ActiveSceneID",
                                            "caption":  "Active scene variable",
-                                           "validVariableTypes": [1]
+                                           "validVariableTypes": [3]
                                        },
                                        {
                                            "type": "Select", "name": "OffScene", "caption": "Scene used when switching off", "options": []

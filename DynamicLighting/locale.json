@@ -47,6 +47,8 @@
             "Select a light and a profile first.": "Zuerst eine Leuchte und ein Profil ausw\u00e4hlen.",
             "No scene": "Keine Szene",
             "No Scene Control": "Keine Szenensteuerung",
+            "Load scenes from selected instance": "Szenen aus gew\u00e4hlter Instanz laden",
+            "Clear unavailable Scene Control selection": "Ung\u00fcltige Scene-Control-Auswahl zur\u00fccksetzen",
             "Unavailable Scene Control (%d) - select again": "Scene Control (%d) nicht verf\u00fcgbar - bitte neu ausw\u00e4hlen",
             "Scene %d (select Scene Control)": "Szene %d (Scene Control ausw\u00e4hlen)",
             "Scene": "Szene",
