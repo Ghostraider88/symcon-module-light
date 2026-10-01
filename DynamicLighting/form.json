@@ -79,6 +79,7 @@
                                            "columns":  [
                                                            {
                                                                "name":  "Name",
+                                                               "add":  "",
                                                                "caption":  "Name",
                                                                "width":  "auto",
                                                                "edit":  {
@@ -87,6 +88,7 @@
                                                            },
                                                            {
                                                                "name":  "SwitchID",
+                                                               "add":  0,
                                                                "caption":  "Switch",
                                                                "width":  "auto",
                                                                "edit":  {
@@ -96,6 +98,7 @@
                                                            },
                                                            {
                                                                "name":  "BrightnessID",
+                                                               "add":  0,
                                                                "caption":  "Brightness",
                                                                "width":  "auto",
                                                                "edit":  {
@@ -105,6 +108,7 @@
                                                            },
                                                            {
                                                                "name":  "BrightnessScale",
+                                                               "add":  100,
                                                                "caption":  "Scale",
                                                                "width":  "auto",
                                                                "edit":  {
@@ -123,6 +127,7 @@
                                                            },
                                                            {
                                                                "name":  "MaxBrightness",
+                                                               "add":  100,
                                                                "caption":  "Max %",
                                                                "width":  "auto",
                                                                "edit":  {
@@ -133,6 +138,7 @@
                                                            },
                                                            {
                                                                "name":  "MinBrightness",
+                                                               "add":  0,
                                                                "caption":  "Start %",
                                                                "width":  "auto",
                                                                "edit":  {
@@ -143,6 +149,7 @@
                                                            },
                                                            {
                                                                "name":  "ColorID",
+                                                               "add":  0,
                                                                "caption":  "Color",
                                                                "width":  "auto",
                                                                "edit":  {
@@ -152,6 +159,7 @@
                                                            },
                                                            {
                                                                "name":  "TemperatureID",
+                                                               "add":  0,
                                                                "caption":  "Color temp.",
                                                                "width":  "auto",
                                                                "edit":  {
@@ -161,6 +169,7 @@
                                                            },
                                                            {
                                                                "name":  "SpringColor",
+                                                               "add":  0,
                                                                "caption":  "Spring color",
                                                                "width":  "auto",
                                                                "edit":  {
@@ -170,6 +179,7 @@
                                                            },
                                                            {
                                                                "name":  "SummerColor",
+                                                               "add":  0,
                                                                "caption":  "Summer color",
                                                                "width":  "auto",
                                                                "edit":  {
@@ -179,6 +189,7 @@
                                                            },
                                                            {
                                                                "name":  "AutumnColor",
+                                                               "add":  0,
                                                                "caption":  "Autumn color",
                                                                "width":  "auto",
                                                                "edit":  {
@@ -188,6 +199,7 @@
                                                            },
                                                            {
                                                                "name":  "WinterColor",
+                                                               "add":  0,
                                                                "caption":  "Winter color",
                                                                "width":  "auto",
                                                                "edit":  {
@@ -197,6 +209,7 @@
                                                            },
                                                            {
                                                                "name":  "SpringTemperature",
+                                                               "add":  0,
                                                                "caption":  "Spring K",
                                                                "width":  "auto",
                                                                "edit":  {
@@ -206,6 +219,7 @@
                                                            },
                                                            {
                                                                "name":  "SummerTemperature",
+                                                               "add":  0,
                                                                "caption":  "Summer K",
                                                                "width":  "auto",
                                                                "edit":  {
@@ -215,6 +229,7 @@
                                                            },
                                                            {
                                                                "name":  "AutumnTemperature",
+                                                               "add":  0,
                                                                "caption":  "Autumn K",
                                                                "width":  "auto",
                                                                "edit":  {
@@ -224,6 +239,7 @@
                                                            },
                                                            {
                                                                "name":  "WinterTemperature",
+                                                               "add":  0,
                                                                "caption":  "Winter K",
                                                                "width":  "auto",
                                                                "edit":  {
@@ -278,6 +294,7 @@
                                            "columns":  [
                                                            {
                                                                "name":  "VariableID",
+                                                               "add":  0,
                                                                "caption":  "Boolean trigger",
                                                                "width":  "auto",
                                                                "edit":  {
@@ -287,6 +304,7 @@
                                                            },
                                                            {
                                                                "name":  "SceneNumber",
+                                                               "add":  1,
                                                                "caption":  "Scene number",
                                                                "width":  "120px",
                                                                "edit":  {
