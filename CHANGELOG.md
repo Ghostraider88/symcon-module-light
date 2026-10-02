@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.1 - Build 11 - 2026-10-02
+
+- Add an optional ambient-demand gate to Boolean scene triggers. Priority scenes can wait until lux and schedule conditions request light.
+
 ## 1.1 - Build 10 - 2026-10-02
 
 - Rename the mode label from Ambient to Automatic for clarity.

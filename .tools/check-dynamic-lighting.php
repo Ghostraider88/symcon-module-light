@@ -79,7 +79,8 @@ $module->properties = [
     'ActiveProfile' => 'summer-profile',
     'TargetProfiles' => json_encode([['TargetName' => 'Sink', 'ProfileID' => 'summer-profile', 'ColorValue' => '#FF0000', 'Temperature' => 0]], JSON_THROW_ON_ERROR),
     'Targets' => json_encode([['Name' => 'Sink', 'SwitchID' => 57005, 'ColorID' => 43668, 'MaxBrightness' => 42]], JSON_THROW_ON_ERROR),
-    'SceneControlID' => 41254, 'OffScene' => 1, 'TVScene' => 5
+    'SceneControlID' => 41254, 'OffScene' => 1, 'TVScene' => 5,
+    'BrightLux' => 300, 'DarkLux' => 2500, 'StartTime' => '00:00', 'EndTime' => '23:59', 'EnableVariableID' => 0
 ];
 $checks = 0;
 function check(bool $condition, string $description): void
@@ -160,6 +161,13 @@ $profileOptions = new ReflectionMethod(DynamicLighting::class, 'ProfilePresentat
 check(array_column($profileOptions->invoke($module), 'Value') === [0, 1]
     && array_column($profileOptions->invoke($module), 'Caption') === ['Summer', 'Winter'],
     'Integer profile options should display the configured profile names');
+$triggerMayActivate = new ReflectionMethod(DynamicLighting::class, 'TriggerMayActivate');
+check($triggerMayActivate->invoke($module, ['OnlyWhenAmbientActive' => true], 25000.0) === false,
+    'A demand-gated scene trigger should not activate in bright daylight');
+check($triggerMayActivate->invoke($module, ['OnlyWhenAmbientActive' => true], 2000.0) === true,
+    'A demand-gated scene trigger should activate when the automatic lux curve requests light');
+check($triggerMayActivate->invoke($module, [], 25000.0) === true,
+    'Existing scene triggers should retain their unconditional behavior by default');
 $module->attributes['SelectedProfileID'] = 'removed-profile';
 check($effectiveProfile->invoke($module) === 'summer-profile', 'An unavailable visualization selection should fall back to the configured default');
 $module->attributes['SelectedProfileID'] = '';
@@ -188,7 +196,8 @@ $sceneField = field($form['elements'], 'SceneTriggers');
 $sceneColumn = array_values(array_filter($sceneField['columns'], static fn (array $column): bool => $column['name'] === 'SceneNumber'))[0];
 check($sceneColumn['edit']['options'][5]['caption'] === 'Fernsehen', 'Generic scene trigger selector must use actual scene names');
 check(field($form['elements'], 'SceneTriggers')['form'][2]['name'] === 'Priority', 'Scene trigger dialog should expose priority behavior');
-check(field($form['elements'], 'SceneTriggers')['form'][3]['name'] === 'ResumeOnFalse', 'Scene trigger dialog should expose ambient resume behavior');
+check(field($form['elements'], 'SceneTriggers')['form'][3]['name'] === 'OnlyWhenAmbientActive', 'Scene trigger dialog should expose ambient-demand gating');
+check(field($form['elements'], 'SceneTriggers')['form'][4]['name'] === 'ResumeOnFalse', 'Scene trigger dialog should expose ambient resume behavior');
 check(field($form['elements'], 'TVVariableID') === null, 'Scene UI must not be limited to a TV trigger');
 $module->SelectSceneControl(41254);
 check($module->formUpdates['ActiveSceneID']['value'] === '44543', 'Scene selection must discover ActiveScene by ident');

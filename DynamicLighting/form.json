@@ -300,7 +300,7 @@
                      {
                          "type":  "ExpansionPanel",
                          "caption": "Scene integration",
-                         "items":  [ {"type":"Label","caption":"Ambient mode controls lights by lux and time. Any boolean trigger can load a scene; optional priority keeps that scene active while the trigger is true, and optional resume returns to ambient control when all scene triggers turn off."},
+                         "items":  [ {"type":"Label","caption":"Automatic mode controls lights by lux and time. Any boolean trigger can load a scene. Priority holds it while true; optional ambient-demand gating delays activation until the lux/time automation would switch lights on. Resume can return to automatic mode when the trigger turns off."},
                                        {
                                            "type":  "SelectInstance",
                                            "name":  "SceneControlID",
@@ -340,6 +340,7 @@
                                                {"type":"SelectVariable","name":"VariableID","caption":"Boolean trigger","validVariableTypes":[0]},
                                                {"type":"Select","name":"SceneNumber","caption":"Scene","options":[]},
                                                {"type":"CheckBox","name":"Priority","caption":"Keep this scene active while the trigger is true"},
+                                               {"type":"CheckBox","name":"OnlyWhenAmbientActive","caption":"Wait until the lux/time automation would turn lights on"},
                                                {"type":"CheckBox","name":"ResumeOnFalse","caption":"Resume ambient control when the trigger turns off"}
                                            ],
                                            "columns":  [
@@ -365,6 +366,14 @@
                                                                "add": false,
                                                                "caption": "Keep active while true",
                                                                "width": "130px",
+                                                               "visible": false,
+                                                               "edit": { "type": "CheckBox" }
+                                                           },
+                                                           {
+                                                               "name": "OnlyWhenAmbientActive",
+                                                               "add": false,
+                                                               "caption": "Wait for ambient demand",
+                                                               "width": "140px",
                                                                "visible": false,
                                                                "edit": { "type": "CheckBox" }
                                                            },

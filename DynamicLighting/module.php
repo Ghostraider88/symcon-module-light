@@ -446,8 +446,12 @@ class DynamicLighting extends IPSModuleStrict
         foreach ($this->SceneTriggers() as $trigger) {
             if ((int)($trigger['VariableID'] ?? 0) === $senderID) {
                 if ((bool)GetValue($senderID)) {
-                    $this->CallScene((int)($trigger['SceneNumber'] ?? 0));
-                    $this->SetValue('Mode', !empty($trigger['Priority']) ? self::TV : self::MANUAL);
+                    $luxID = $this->ReadPropertyInteger('LuxVariableID');
+                    $lux = $luxID > 0 && IPS_VariableExists($luxID) ? (float)GetValue($luxID) : INF;
+                    if ($this->TriggerMayActivate($trigger, $lux)) {
+                        $this->CallScene((int)($trigger['SceneNumber'] ?? 0));
+                        $this->SetValue('Mode', !empty($trigger['Priority']) ? self::TV : self::MANUAL);
+                    }
                 } elseif (!empty($trigger['ResumeOnFalse']) && !$this->HasActiveSceneTrigger()) {
                     $this->SetValue('Mode', self::AMBIENT);
                 }
@@ -521,7 +525,7 @@ class DynamicLighting extends IPSModuleStrict
         $lux = (float)GetValue($this->ReadPropertyInteger('LuxVariableID'));
         $this->SetValue('Illuminance', $lux);
         $mode = (int)$this->GetValue('Mode');
-        $priorityTrigger = $this->ActivePriorityTrigger();
+        $priorityTrigger = $this->ActivePriorityTrigger($lux);
         if ($priorityTrigger !== null) {
             $priorityScene = (int)($priorityTrigger['SceneNumber'] ?? 0);
             if ($mode !== self::TV || $this->CurrentSceneNumber() !== $priorityScene) {
@@ -990,11 +994,13 @@ class DynamicLighting extends IPSModuleStrict
             if (!isset($row['SceneNumber']) && isset($row['Scene'])) $row['SceneNumber'] = $row['Scene'];
             $row['Priority'] = (bool)($row['Priority'] ?? false);
             $row['ResumeOnFalse'] = (bool)($row['ResumeOnFalse'] ?? false);
+            $row['OnlyWhenAmbientActive'] = (bool)($row['OnlyWhenAmbientActive'] ?? false);
         }
         unset($row);
         $tvID = $this->ReadPropertyInteger('TVVariableID');
         if ($tvID > 0 && !array_filter($rows, static fn (array $row): bool => (int)($row['VariableID'] ?? 0) === $tvID)) {
-            $rows[] = ['VariableID' => $tvID, 'SceneNumber' => $this->ReadPropertyInteger('TVScene'), 'Priority' => true, 'ResumeOnFalse' => true];
+            $rows[] = ['VariableID' => $tvID, 'SceneNumber' => $this->ReadPropertyInteger('TVScene'), 'Priority' => true,
+                'ResumeOnFalse' => true, 'OnlyWhenAmbientActive' => false];
         }
         return $rows;
     }
@@ -1008,13 +1014,24 @@ class DynamicLighting extends IPSModuleStrict
         return false;
     }
 
-    private function ActivePriorityTrigger(): ?array
+    private function ActivePriorityTrigger(float $lux): ?array
     {
         foreach ($this->SceneTriggers() as $trigger) {
             $id = (int)($trigger['VariableID'] ?? 0);
-            if (!empty($trigger['Priority']) && $id > 0 && IPS_VariableExists($id) && (bool)GetValue($id)) return $trigger;
+            if (!empty($trigger['Priority']) && $id > 0 && IPS_VariableExists($id) && (bool)GetValue($id)
+                && $this->TriggerMayActivate($trigger, $lux)) return $trigger;
         }
         return null;
+    }
+
+    private function TriggerMayActivate(array $trigger, float $lux): bool
+    {
+        if (empty($trigger['OnlyWhenAmbientActive'])) return true;
+        $brightLux = $this->ReadPropertyInteger('BrightLux');
+        $darkLux = $this->ReadPropertyInteger('DarkLux');
+        if (!$this->WithinSchedule() || !$this->Enabled() || $darkLux <= $brightLux) return false;
+        $percent = (int)round(max(0.0, min(1.0, ($darkLux - $lux) / ($darkLux - $brightLux))) * 100);
+        return $percent > 0;
     }
 
     private function CurrentSceneNumber(): ?int

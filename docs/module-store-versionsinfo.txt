@@ -1,3 +1,6 @@
+Build 11 (2026-10-02)
+neu: Szenenauslöser können auf den Lichtbedarf der Lux-/Zeitautomatik warten.
+
 Build 10 (2026-10-02)
 geändert: Modusname Umgebungslicht in Automatik umbenannt.
 
