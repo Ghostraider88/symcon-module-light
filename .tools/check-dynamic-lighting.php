@@ -168,6 +168,11 @@ check($triggerMayActivate->invoke($module, ['OnlyWhenAmbientActive' => true], 20
     'A demand-gated scene trigger should activate when the automatic lux curve requests light');
 check($triggerMayActivate->invoke($module, [], 25000.0) === true,
     'Existing scene triggers should retain their unconditional behavior by default');
+$enabled = new ReflectionMethod(DynamicLighting::class, 'Enabled');
+$module->properties['EnableVariableID'] = 99999;
+check($enabled->invoke($module) === true,
+    'A deleted optional enable variable must be treated as unset');
+$module->properties['EnableVariableID'] = 0;
 $module->attributes['SelectedProfileID'] = 'removed-profile';
 check($effectiveProfile->invoke($module) === 'summer-profile', 'An unavailable visualization selection should fall back to the configured default');
 $module->attributes['SelectedProfileID'] = '';

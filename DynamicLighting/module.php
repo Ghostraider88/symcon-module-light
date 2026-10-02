@@ -667,7 +667,8 @@ class DynamicLighting extends IPSModuleStrict
     private function Enabled(): bool
     {
         $id = $this->ReadPropertyInteger('EnableVariableID');
-        return $id <= 0 || (IPS_VariableExists($id) && (bool)GetValue($id));
+        // The enable input is optional. If its variable was deleted, treat the stale ID as unset.
+        return $id <= 0 || !IPS_VariableExists($id) || (bool)GetValue($id);
     }
 
     private function ConfigurationIsValid(): bool
@@ -686,7 +687,7 @@ class DynamicLighting extends IPSModuleStrict
 
         $enableID = $this->ReadPropertyInteger('EnableVariableID');
         $tvID = $this->ReadPropertyInteger('TVVariableID');
-        if (($enableID > 0 && !$this->VariableHasType($enableID, [0]))
+        if (($enableID > 0 && IPS_VariableExists($enableID) && !$this->VariableHasType($enableID, [0]))
             || ($tvID > 0 && !$this->VariableHasType($tvID, [0]))) {
             return false;
         }

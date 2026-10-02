@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.1 - Build 12 - 2026-10-02
+
+- Treat a deleted optional enable variable as unset so it no longer blocks ambient lighting.
+
 ## 1.1 - Build 11 - 2026-10-02
 
 - Add an optional ambient-demand gate to Boolean scene triggers. Priority scenes can wait until lux and schedule conditions request light.
