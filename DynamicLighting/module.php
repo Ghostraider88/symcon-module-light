@@ -393,11 +393,11 @@ class DynamicLighting extends IPSModuleStrict
         IPS_SetVariableCustomPresentation($this->GetIDForIdent('Illuminance'), ['PRESENTATION' => VARIABLE_PRESENTATION_VALUE_PRESENTATION, 'SUFFIX' => ' lx', 'DIGITS' => 0]);
         if ($this->RegisterVariableInteger('CalculatedBrightness', $this->Translate('Calculated brightness'), '', 30)) $this->SetValue('CalculatedBrightness', 0);
         IPS_SetVariableCustomPresentation($this->GetIDForIdent('CalculatedBrightness'), ['PRESENTATION' => VARIABLE_PRESENTATION_VALUE_PRESENTATION, 'SUFFIX' => ' %', 'MIN' => 0, 'MAX' => 100, 'DIGITS' => 0]);
-        if ($this->RegisterVariableString('Profile', $this->Translate('Light profile'), '', 35)) {
-            $this->SetValue('Profile', $this->ProfileDisplayValue($this->EffectiveActiveProfile()));
+        if ($this->RegisterVariableInteger('Profile', $this->Translate('Light profile'), '', 35)) {
+            $this->SetValue('Profile', $this->ProfileOptionValue($this->EffectiveActiveProfile()));
         }
         IPS_SetVariableCustomPresentation($this->GetIDForIdent('Profile'), [
-            'PRESENTATION' => VARIABLE_PRESENTATION_VALUE_PRESENTATION,
+            'PRESENTATION' => VARIABLE_PRESENTATION_ENUMERATION,
             'OPTIONS' => json_encode($this->ProfilePresentationOptions(), JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE),
             'DISPLAY' => 2, 'LAYOUT' => 1
         ]);
@@ -407,8 +407,8 @@ class DynamicLighting extends IPSModuleStrict
         if ($storedProfile !== '' && !in_array($storedProfile, array_column($this->Profiles(), 'ProfileID'), true)) {
             $this->WriteAttributeString('SelectedProfileID', '');
         }
-        $profileDisplayValue = $this->ProfileDisplayValue($selectedProfile);
-        if ($this->GetValue('Profile') !== $profileDisplayValue) $this->SetValue('Profile', $profileDisplayValue);
+        $profileOptionValue = $this->ProfileOptionValue($selectedProfile);
+        if ($this->GetValue('Profile') !== $profileOptionValue) $this->SetValue('Profile', $profileOptionValue);
         if ($this->RegisterVariableInteger('Mode', $this->Translate('Mode'), '', 40)) $this->SetValue('Mode', self::AMBIENT);
         IPS_SetVariableCustomPresentation($this->GetIDForIdent('Mode'), [
             'PRESENTATION' => VARIABLE_PRESENTATION_ENUMERATION,
@@ -467,18 +467,11 @@ class DynamicLighting extends IPSModuleStrict
             $this->SwitchOff();
             return;
         }
-        if ($ident === 'Profile' && is_string($value)) {
-            $profileID = '';
-            foreach ($this->Profiles() as $profile) {
-                $candidateID = (string)$profile['ProfileID'];
-                if ($value === $candidateID || $value === $this->ProfileDisplayValue($candidateID)) {
-                    $profileID = $candidateID;
-                    break;
-                }
-            }
-            if ($profileID === '') throw new InvalidArgumentException('Select one of the configured lighting profiles.');
+        if ($ident === 'Profile' && is_int($value)) {
+            $profileID = $this->ProfileIDForOption($value);
+            if ($profileID === null) throw new InvalidArgumentException('Select one of the configured lighting profiles.');
             $this->WriteAttributeString('SelectedProfileID', $profileID);
-            $this->SetValue('Profile', $this->ProfileDisplayValue($profileID));
+            $this->SetValue('Profile', $value);
             $this->EvaluateAndRefresh();
             return;
         }
@@ -879,28 +872,25 @@ class DynamicLighting extends IPSModuleStrict
         return in_array($configured, $profileIDs, true) ? $configured : (string)($profileIDs[0] ?? '');
     }
 
-    private function ProfileDisplayValue(string $profileID): string
+    private function ProfileOptionValue(string $profileID): int
     {
-        $profile = null;
-        foreach ($this->Profiles() as $candidate) {
-            if ((string)$candidate['ProfileID'] === $profileID) $profile = $candidate;
-        }
-        if ($profile === null) return $profileID;
-        $name = (string)$profile['Name'];
-        $sameNameCount = count(array_filter($this->Profiles(), static fn (array $candidate): bool => (string)$candidate['Name'] === $name));
-        if ($sameNameCount <= 1) return $name;
-        $suffix = substr(str_replace(['{', '}', '-'], '', $profileID), -6);
-        return $name . ' (' . $suffix . ')';
+        $index = array_search($profileID, array_column($this->Profiles(), 'ProfileID'), true);
+        return $index === false ? 0 : (int)$index;
+    }
+
+    private function ProfileIDForOption(int $value): ?string
+    {
+        $profileID = array_column($this->Profiles(), 'ProfileID')[$value] ?? null;
+        return $profileID === null ? null : (string)$profileID;
     }
 
     private function ProfilePresentationOptions(): array
     {
         $options = [];
-        foreach ($this->Profiles() as $profile) {
-            $displayValue = $this->ProfileDisplayValue((string)$profile['ProfileID']);
+        foreach ($this->Profiles() as $index => $profile) {
             $options[] = [
-                'Value' => $displayValue,
-                'Caption' => $displayValue,
+                'Value' => (int)$index,
+                'Caption' => (string)$profile['Name'],
                 'IconValue' => '', 'IconActive' => false, 'Color' => -1
             ];
         }

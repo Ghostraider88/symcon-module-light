@@ -1,3 +1,6 @@
+Build 9 (2026-10-02)
+geändert: Profil-Variable ist jetzt eine INT-Auswahl mit den Namen der Lichtprofile.
+
 Build 8 (2026-10-02)
 korrigiert: Die Profil-Variable zeigt Profilnamen statt kryptischer interner IDs.
 

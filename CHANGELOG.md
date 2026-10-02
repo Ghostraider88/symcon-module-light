@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.1 - Build 9 - 2026-10-02
+
+- Change the selectable Profile status variable to an integer enumeration with the configured profile names.
+
 ## 1.1 - Build 8 - 2026-10-02
 
 - Show readable profile names in the selectable Profile status variable instead of internal profile IDs.
