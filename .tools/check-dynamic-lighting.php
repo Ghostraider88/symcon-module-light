@@ -41,6 +41,7 @@ class IPSModuleStrict
 $objects = [39774 => ['ObjectType' => 1, 'ObjectName' => 'Kitchen sink'], 41254 => ['ObjectType' => 1, 'ObjectName' => 'Beleuchtung']];
 $variables = [];
 $children = [39774 => [], 41254 => []];
+$actions = [];
 foreach ([
     [36953, 'color_hs', '~HexColor', 1],
     [43668, 'color', '~HexColor', 1],
@@ -69,6 +70,7 @@ function IPS_InstanceExists(int $id): bool { return isset($GLOBALS['objects'][$i
 function IPS_GetInstance(int $id): array { return ['ModuleInfo' => ['ModuleName' => $id === 41254 ? 'SceneControl' : 'Light']]; }
 function IPS_GetInstanceListByModuleID(string $moduleID): array { return $moduleID === '{87F46796-CC43-442D-94FD-AAA0BD8D9F54}' ? [41254] : []; }
 function GetValue(int $id): mixed { return $id === 43668 ? 16711680 : 0; }
+function RequestAction(int $id, mixed $value): void { $GLOBALS['actions'][$id] = $value; }
 
 require __DIR__ . '/../DynamicLighting/module.php';
 $module = new DynamicLighting();
@@ -118,6 +120,20 @@ $module->DiscoverLights(39774);
 $targets = json_decode($module->formUpdates['Targets']['values'], true, 512, JSON_THROW_ON_ERROR);
 check(count($targets) === 1 && $targets[0]['Name'] === 'Kitchen sink', 'Discovery must add the selected instance');
 $module->properties['Targets'] = json_encode([array_replace($light, ['Name' => 'Sink'])], JSON_THROW_ON_ERROR);
+$module->properties['Targets'] = json_encode([array_replace($light, ['Name' => 'Sink', 'BrightnessID' => 58879, 'MaxBrightness' => 42, 'MinBrightness' => 10])], JSON_THROW_ON_ERROR);
+$module->properties['ActiveProfile'] = 'summer-profile';
+$module->attributes['TargetProfileData'] = json_encode([
+    ['TargetName' => 'Sink', 'ProfileID' => 'summer-profile', 'ColorValue' => 16711680, 'Temperature' => 0,
+        'MinBrightness' => 15, 'MaxBrightness' => 65]
+], JSON_THROW_ON_ERROR);
+$applyTargets = new ReflectionMethod(DynamicLighting::class, 'ApplyTargets');
+$applyTargets->invoke($module, 50);
+check($actions[58879] === 40, 'Profile-specific min/max brightness must override the light defaults');
+$module->attributes['TargetProfileData'] = json_encode([
+    ['TargetName' => 'Sink', 'ProfileID' => 'summer-profile', 'MinBrightness' => -1, 'MaxBrightness' => -1]
+], JSON_THROW_ON_ERROR);
+$applyTargets->invoke($module, 50);
+check($actions[58879] === 26, 'Unset profile brightness limits must fall back to the configured light defaults');
 
 $module->CaptureCurrentColor('Sink', 'summer-profile', '{"Temperature":4000}');
 $settings = json_decode($module->formUpdates['TargetProfiles']['values'], true, 512, JSON_THROW_ON_ERROR);

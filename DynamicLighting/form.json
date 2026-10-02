@@ -232,7 +232,9 @@
                                             "form": [
                                                 {"type":"Select","name":"TargetName","caption":"Light","options":[]},
                                                 {"type":"SelectColor","name":"ColorValue","caption":"Color","allowTransparent":true,"transparentCaption":"Keep current color"},
-                                                {"type":"NumberSpinner","name":"Temperature","caption":"Kelvin","minimum":0,"maximum":10000}
+                                                {"type":"NumberSpinner","name":"Temperature","caption":"Kelvin","minimum":0,"maximum":10000},
+                                                {"type":"NumberSpinner","name":"MinBrightness","caption":"Minimum brightness % (-1 = light default)","minimum":-1,"maximum":100},
+                                                {"type":"NumberSpinner","name":"MaxBrightness","caption":"Maximum brightness % (-1 = light default)","minimum":-1,"maximum":100}
                                             ],
                                             "columns":  [
                                                             {
@@ -264,6 +266,22 @@
                                                                 "visible":  false,
                                                                 "add":  0,
                                                                 "edit":  { "type":  "NumberSpinner", "minimum":  0, "maximum":  10000 }
+                                                            },
+                                                            {
+                                                                "name": "MinBrightness",
+                                                                "caption": "Minimum brightness %",
+                                                                "width": "100px",
+                                                                "visible": false,
+                                                                "add": -1,
+                                                                "edit": { "type": "NumberSpinner", "minimum": -1, "maximum": 100 }
+                                                            },
+                                                            {
+                                                                "name": "MaxBrightness",
+                                                                "caption": "Maximum brightness %",
+                                                                "width": "100px",
+                                                                "visible": false,
+                                                                "add": -1,
+                                                                "edit": { "type": "NumberSpinner", "minimum": -1, "maximum": 100 }
                                                             },
                                                             {
                                                                 "name":  "Capture",

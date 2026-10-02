@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.1 - Build 6 - 2026-10-02
+
+- Add per-profile minimum and maximum brightness overrides for each light; `-1` inherits the light target's default.
+
 ## 1.1 - Build 5 - 2026-10-02
 
 - Compact light-target tables and move detailed settings into edit dialogs so row actions remain accessible.

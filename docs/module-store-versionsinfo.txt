@@ -1,3 +1,6 @@
+Build 6 (2026-10-02)
+neu: Mindest- und Maximalhelligkeit je Licht und Profil einstellbar; -1 übernimmt den Standard des Lichtziels.
+
 Build 5 (2026-10-02)
 geändert: Lichtzieltabellen kompakt gemacht; Detailwerte und Bearbeitung in eigene Dialoge verschoben.
 neu: Kelvin als optionale Farbtemperatur erklärt; Kelvin hat Vorrang vor RGB, wenn beides gesetzt ist.

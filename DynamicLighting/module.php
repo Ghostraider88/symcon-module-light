@@ -114,6 +114,8 @@ class DynamicLighting extends IPSModuleStrict
         $row['ProfileID'] = $profileID;
         $row['ColorValue'] = $this->ColorToInteger($row['ColorValue'] ?? null) ?? -1;
         $row['Temperature'] = max(0, (int)($row['Temperature'] ?? 0));
+        $row['MinBrightness'] = (int)($row['MinBrightness'] ?? -1);
+        $row['MaxBrightness'] = (int)($row['MaxBrightness'] ?? -1);
         $row['Capture'] = $this->Translate('Take over current color');
         $all[] = $row;
         $this->WriteAttributeString('TargetProfileData', json_encode($all, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE));
@@ -223,6 +225,8 @@ class DynamicLighting extends IPSModuleStrict
                 'ProfileID' => $profileID,
                 'ColorValue' => $colorValue,
                 'Temperature' => 0,
+                'MinBrightness' => -1,
+                'MaxBrightness' => -1,
                 'Capture' => 'Übernehmen'
             ], $currentRow);
         }
@@ -546,8 +550,13 @@ class DynamicLighting extends IPSModuleStrict
         $this->SetBuffer('OutputOff', '0');
         $profileID = $this->ReadPropertyString('ActiveProfile');
         foreach ($this->Targets() as $target) {
-            $maximum = max(1, min(100, (int)($target['MaxBrightness'] ?? 100)));
-            $minimum = max(0, min($maximum, (int)($target['MinBrightness'] ?? 0)));
+            $settings = $this->TargetProfile($target, $profileID);
+            $targetMaximum = max(1, min(100, (int)($target['MaxBrightness'] ?? 100)));
+            $targetMinimum = max(0, min($targetMaximum, (int)($target['MinBrightness'] ?? 0)));
+            $maximumSetting = (int)($settings['MaxBrightness'] ?? -1);
+            $minimumSetting = (int)($settings['MinBrightness'] ?? -1);
+            $maximum = $maximumSetting >= 0 ? min(100, $maximumSetting) : $targetMaximum;
+            $minimum = $minimumSetting >= 0 ? min($maximum, $minimumSetting) : min($maximum, $targetMinimum);
             $brightness = (int)round($minimum + ($maximum - $minimum) * $percent / 100);
             $id = (int)($target['BrightnessID'] ?? 0);
             if ($id > 0 && IPS_VariableExists($id)) {
@@ -558,7 +567,6 @@ class DynamicLighting extends IPSModuleStrict
             if ($id > 0 && IPS_VariableExists($id)) RequestAction($id, $brightness > 0);
             if ($brightness === 0) continue;
             $id = (int)($target['ColorID'] ?? 0);
-            $settings = $this->TargetProfile($target, $profileID);
             $colorValue = $settings['ColorValue'] ?? null;
             $color = $this->ColorToInteger($colorValue);
             $id = (int)($target['TemperatureID'] ?? 0);
@@ -812,7 +820,8 @@ class DynamicLighting extends IPSModuleStrict
                     }
                 }
                 if (!$found) $rows[] = ['TargetName' => (string)($target['Name'] ?? ''), 'ProfileID' => $profile['ProfileID'],
-                    'ColorValue' => $color ?? -1, 'Temperature' => $temperature, 'Capture' => $this->Translate('Take over current color')];
+                    'ColorValue' => $color ?? -1, 'Temperature' => $temperature, 'MinBrightness' => -1,
+                    'MaxBrightness' => -1, 'Capture' => $this->Translate('Take over current color')];
             }
         }
         return $rows;
@@ -852,6 +861,8 @@ class DynamicLighting extends IPSModuleStrict
         $rows = array_values(array_filter($rows, 'is_array'));
         foreach ($rows as &$row) {
             $row['ColorValue'] = $this->ColorToInteger($row['ColorValue'] ?? null) ?? -1;
+            $row['MinBrightness'] = (int)($row['MinBrightness'] ?? -1);
+            $row['MaxBrightness'] = (int)($row['MaxBrightness'] ?? -1);
             $row['Capture'] = $this->Translate('Take over current color');
         }
         unset($row);
