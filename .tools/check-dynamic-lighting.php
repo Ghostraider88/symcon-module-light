@@ -10,9 +10,12 @@ class IPSModuleStrict
     public array $formUpdates = [];
     public array $buffers = [];
     public array $values = [];
+    public array $attributes = [];
     protected function GetBuffer(string $name): string { return $this->buffers[$name] ?? ''; }
     protected function SetBuffer(string $name, string $value): void { $this->buffers[$name] = $value; }
     protected function SetValue(string $name, mixed $value): void { $this->values[$name] = $value; }
+    protected function ReadAttributeString(string $name): string { return (string)($this->attributes[$name] ?? ''); }
+    protected function WriteAttributeString(string $name, string $value): void { $this->attributes[$name] = $value; }
 
     protected function ReadPropertyString(string $name): string
     {
@@ -87,6 +90,8 @@ function field(array $elements, string $name): ?array
         if (($element['name'] ?? '') === $name) return $element;
         $found = field($element['items'] ?? [], $name);
         if ($found !== null) return $found;
+        $found = field($element['form'] ?? [], $name);
+        if ($found !== null) return $found;
     }
     return null;
 }
@@ -123,15 +128,37 @@ $module->CaptureCurrentColor('Sink', 'summer-profile', json_encode($settings, JS
 $pendingSettings = json_decode($module->formUpdates['TargetProfiles']['values'], true, 512, JSON_THROW_ON_ERROR);
 check(count($pendingSettings) === 2 && $pendingSettings[1]['ColorValue'] === 255, 'Capture must preserve other unsaved profile rows');
 check($pendingSettings[0]['Temperature'] === 4000, 'Capture from a table snapshot must preserve selected row edits');
+$module->properties['Profiles'] = json_encode([
+    ['ProfileID' => 'summer-profile', 'Name' => 'Summer'],
+    ['ProfileID' => 'winter-profile', 'Name' => 'Winter']
+], JSON_THROW_ON_ERROR);
+$allSettings = $pendingSettings;
+$allSettings[] = ['TargetName' => 'Sink', 'ProfileID' => 'winter-profile', 'ColorValue' => 255, 'Temperature' => 2700];
+$module->attributes['TargetProfileData'] = json_encode($allSettings, JSON_THROW_ON_ERROR);
+$module->properties['EditProfileID'] = 'summer-profile';
 
 $form = json_decode($module->GetConfigurationForm(), true, 512, JSON_THROW_ON_ERROR);
 $profileField = field($form['elements'], 'TargetProfiles');
 check($profileField['loadValuesFromConfiguration'] === false, 'Normalized values must take precedence over stored CSS strings');
 check($profileField['values'][0]['ColorValue'] === 16711680, 'Stored CSS color must display as numeric RGB');
+check(count($profileField['values']) === 2, 'Profile filter must show only the selected profile rows');
+$module->SelectProfileForEditing('winter-profile');
+$retainedSettings = json_decode($module->attributes['TargetProfileData'], true, 512, JSON_THROW_ON_ERROR);
+check(count($retainedSettings) === 3, 'Changing the profile filter must retain every other profile row');
+check(json_decode($module->formUpdates['TargetProfiles']['values'], true, 512, JSON_THROW_ON_ERROR)[0]['Temperature'] === 2700,
+    'Selecting a profile must display its stored values');
 $targetField = field($form['elements'], 'Targets');
 check(count(array_filter($targetField['columns'], static fn (array $column): bool => preg_match('/^(Spring|Summer|Autumn|Winter)(Color|Temperature)$/', $column['name']) === 1)) === 0, 'Legacy seasonal fields must not appear in the light editor');
+check(count(array_filter($targetField['columns'], static fn (array $column): bool => !empty($column['visible']))) === 1,
+    'Light target table should expose only a compact name column');
+check(count($targetField['form']) >= 8, 'Light targets should retain detailed settings in the edit dialog');
 check(field($form['elements'], 'DiscoveryInstanceID')['type'] === 'SelectInstance', 'Discovery must select an instance');
-check(field($form['elements'], 'TVScene')['options'][5]['caption'] === 'Fernsehen', 'TV selector must use actual scene names');
+$sceneField = field($form['elements'], 'SceneTriggers');
+$sceneColumn = array_values(array_filter($sceneField['columns'], static fn (array $column): bool => $column['name'] === 'SceneNumber'))[0];
+check($sceneColumn['edit']['options'][5]['caption'] === 'Fernsehen', 'Generic scene trigger selector must use actual scene names');
+check(field($form['elements'], 'SceneTriggers')['form'][2]['name'] === 'Priority', 'Scene trigger dialog should expose priority behavior');
+check(field($form['elements'], 'SceneTriggers')['form'][3]['name'] === 'ResumeOnFalse', 'Scene trigger dialog should expose ambient resume behavior');
+check(field($form['elements'], 'TVVariableID') === null, 'Scene UI must not be limited to a TV trigger');
 $module->SelectSceneControl(41254);
 check($module->formUpdates['ActiveSceneID']['value'] === '44543', 'Scene selection must discover ActiveScene by ident');
 check(field($form['elements'], 'SceneControlID')['type'] === 'SelectInstance', 'Scene Control must use the requested instance selector');

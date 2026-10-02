@@ -103,14 +103,24 @@
                                            "caption":  "Configured lights",
                                            "add":  true,
                                            "delete":  true,
-                                           "multiAdd":  true,
-                                           "rowCount":  20,
+                                           "rowCount":  8,
+                                           "form": [
+                                               {"type":"ValidationTextBox","name":"Name","caption":"Name"},
+                                               {"type":"SelectVariable","name":"SwitchID","caption":"Switch","requiredAction":1},
+                                               {"type":"SelectVariable","name":"BrightnessID","caption":"Brightness","requiredAction":1},
+                                               {"type":"Select","name":"BrightnessScale","caption":"Scale","options":[{"caption":"0–100","value":100},{"caption":"0–255","value":255}]},
+                                               {"type":"NumberSpinner","name":"MaxBrightness","caption":"Max %","minimum":1,"maximum":100},
+                                               {"type":"NumberSpinner","name":"MinBrightness","caption":"Start %","minimum":0,"maximum":100},
+                                               {"type":"SelectVariable","name":"ColorID","caption":"Color","requiredAction":1},
+                                               {"type":"SelectVariable","name":"TemperatureID","caption":"Color temperature","requiredAction":1}
+                                           ],
                                            "columns":  [
                                                            {
                                                                "name":  "Name",
                                                                "add":  "",
                                                                "caption":  "Name",
                                                                "width":  "auto",
+                                                               "visible":  true,
                                                                "edit":  {
                                                                             "type":  "ValidationTextBox"
                                                                         }
@@ -120,6 +130,7 @@
                                                                "add":  0,
                                                                "caption":  "Switch",
                                                                "width":  "auto",
+                                                               "visible":  false,
                                                                "edit":  {
                                                                             "type":  "SelectVariable",
                                                                             "requiredAction":  1
@@ -130,6 +141,7 @@
                                                                "add":  0,
                                                                "caption":  "Brightness",
                                                                "width":  "auto",
+                                                               "visible":  false,
                                                                "edit":  {
                                                                             "type":  "SelectVariable",
                                                                             "requiredAction":  1
@@ -140,6 +152,7 @@
                                                                "add":  100,
                                                                "caption":  "Scale",
                                                                "width":  "auto",
+                                                               "visible":  false,
                                                                "edit":  {
                                                                             "type":  "Select",
                                                                             "options":  [
@@ -159,6 +172,7 @@
                                                                "add":  100,
                                                                "caption":  "Max %",
                                                                "width":  "auto",
+                                                               "visible":  false,
                                                                "edit":  {
                                                                             "type":  "NumberSpinner",
                                                                             "minimum":  1,
@@ -170,6 +184,7 @@
                                                                "add":  0,
                                                                "caption":  "Start %",
                                                                "width":  "auto",
+                                                               "visible":  false,
                                                                "edit":  {
                                                                             "type":  "NumberSpinner",
                                                                             "minimum":  0,
@@ -181,6 +196,7 @@
                                                                "add":  0,
                                                                "caption":  "Color",
                                                                "width":  "auto",
+                                                               "visible":  false,
                                                                "edit":  {
                                                                             "type":  "SelectVariable",
                                                                             "requiredAction":  1
@@ -191,6 +207,7 @@
                                                                "add":  0,
                                                                "caption":  "Color temp.",
                                                                "width":  "auto",
+                                                               "visible":  false,
                                                                "edit":  {
                                                                             "type":  "SelectVariable",
                                                                             "requiredAction":  1
@@ -201,6 +218,8 @@
 
                                               ]
                                        },
+                                        {"type":"Select","name":"EditProfileID","caption":"Profile values to show","options":[],"onChange":"DLT_SelectProfileForEditing($id, $EditProfileID);"},
+                                        {"type":"Label","caption":"Kelvin sets warm or cool white on tunable-white lights. It is optional (0 = off) and takes precedence over RGB color when both are set."},
                                         {
                                             "type":  "List",
                                             "name":  "TargetProfiles",
@@ -208,7 +227,13 @@
                                             "caption":  "Profile settings by light",
                                             "add":  true,
                                             "delete":  true,
+                                            "onAdd": "$row = json_encode($TargetProfiles); DLT_AddProfileRow($id, $row, $EditProfileID);",
                                             "rowCount":  8,
+                                            "form": [
+                                                {"type":"Select","name":"TargetName","caption":"Light","options":[]},
+                                                {"type":"SelectColor","name":"ColorValue","caption":"Color","allowTransparent":true,"transparentCaption":"Keep current color"},
+                                                {"type":"NumberSpinner","name":"Temperature","caption":"Kelvin","minimum":0,"maximum":10000}
+                                            ],
                                             "columns":  [
                                                             {
                                                                 "name":  "TargetName",
@@ -221,6 +246,7 @@
                                                                 "name":  "ProfileID",
                                                                 "caption":  "Profile",
                                                                 "width":  "auto",
+                                                                "visible":  false,
                                                                 "add":  "",
                                                                 "edit":  { "type":  "Select", "options":  [] }
                                                             },
@@ -235,6 +261,7 @@
                                                                 "name":  "Temperature",
                                                                 "caption":  "Kelvin",
                                                                 "width":  "100px",
+                                                                "visible":  false,
                                                                 "add":  0,
                                                                 "edit":  { "type":  "NumberSpinner", "minimum":  0, "maximum":  10000 }
                                                             },
@@ -254,7 +281,7 @@
                      {
                          "type":  "ExpansionPanel",
                          "caption": "Scene integration",
-                         "items":  [ {"type":"Label","caption":"Ambient mode controls lights by lux and time. TV has priority and loads the selected TV scene; TV off resumes ambient mode. Other scenes pause ambient mode until Resume ambient control is pressed. Boolean triggers start their selected scene when true."},
+                         "items":  [ {"type":"Label","caption":"Ambient mode controls lights by lux and time. Any boolean trigger can load a scene; optional priority keeps that scene active while the trigger is true, and optional resume returns to ambient control when all scene triggers turn off."},
                                        {
                                            "type":  "SelectInstance",
                                            "name":  "SceneControlID",
@@ -284,20 +311,18 @@
                                            "type": "Select", "name": "OffScene", "caption": "Scene used when switching off", "options": []
                                        },
                                        {
-                                           "type":  "SelectVariable",
-                                           "name":  "TVVariableID",
-                                           "caption":  "Optional TV state (boolean)",
-                                           "validVariableTypes": [0]
-                                       },
-                                       {
-                                           "type": "Select", "name": "TVScene", "caption": "Scene used while TV is on", "options": []
-                                       },
-                                       {
                                            "type":  "List",
                                            "name":  "SceneTriggers",
-                                           "caption": "Boolean triggers for scenes",
+                                           "caption": "Scene triggers (any boolean variable)",
                                            "add":  true,
                                            "delete":  true,
+                                           "rowCount": 6,
+                                           "form": [
+                                               {"type":"SelectVariable","name":"VariableID","caption":"Boolean trigger","validVariableTypes":[0]},
+                                               {"type":"Select","name":"SceneNumber","caption":"Scene","options":[]},
+                                               {"type":"CheckBox","name":"Priority","caption":"Keep this scene active while the trigger is true"},
+                                               {"type":"CheckBox","name":"ResumeOnFalse","caption":"Resume ambient control when the trigger turns off"}
+                                           ],
                                            "columns":  [
                                                            {
                                                                "name":  "VariableID",
@@ -315,6 +340,22 @@
                                                                "caption": "Scene",
                                                                "width":  "120px",
                                                                "edit":  { "type": "Select", "options": [] }
+                                                           },
+                                                           {
+                                                               "name": "Priority",
+                                                               "add": false,
+                                                               "caption": "Keep active while true",
+                                                               "width": "130px",
+                                                               "visible": false,
+                                                               "edit": { "type": "CheckBox" }
+                                                           },
+                                                           {
+                                                               "name": "ResumeOnFalse",
+                                                               "add": true,
+                                                               "caption": "Resume ambient when false",
+                                                               "width": "150px",
+                                                               "visible": false,
+                                                               "edit": { "type": "CheckBox" }
                                                            }
                                                        ],
                                            "values":  [

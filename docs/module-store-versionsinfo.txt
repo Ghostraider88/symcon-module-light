@@ -1,3 +1,9 @@
+Build 5 (2026-10-02)
+geändert: Lichtzieltabellen kompakt gemacht; Detailwerte und Bearbeitung in eigene Dialoge verschoben.
+neu: Kelvin als optionale Farbtemperatur erklärt; Kelvin hat Vorrang vor RGB, wenn beides gesetzt ist.
+neu: Profilwerte nach Profil filterbar; Werte anderer Profile bleiben erhalten.
+geändert: Szenenauslöser funktionieren mit beliebigen Bool-Variablen, inklusive Priorität und Rückkehr zur Umgebungssteuerung je Auslöser.
+
 Build 4 (2026-10-01)
 geändert: Scene Control wieder per Instanzauswahl wählen und die Szenen anschließend per Button laden.
 neu: Ungültige gespeicherte Instanzauswahl außerhalb des Baumdialogs zurücksetzen.

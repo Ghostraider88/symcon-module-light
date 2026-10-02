@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.1 - Build 5 - 2026-10-02
+
+- Compact light-target tables and move detailed settings into edit dialogs so row actions remain accessible.
+- Explain optional Kelvin values and make Kelvin take precedence over RGB when both are configured.
+- Filter profile values by a selected profile while retaining settings for all other profiles.
+- Generalize scene triggers to any Boolean variable, with per-trigger priority and ambient-resume options.
+
 ## 1.1 – Build 4 – 2026-10-01
 
 - Restore the Scene Control instance picker, restricted to compatible modules. Load scenes via a separate button after selection.

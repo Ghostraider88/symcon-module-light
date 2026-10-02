@@ -36,6 +36,8 @@ class DynamicLighting extends IPSModuleStrict
         ], JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE));
         $this->RegisterPropertyString('ActiveProfile', self::PROFILE_WINTER);
         $this->RegisterPropertyString('TargetProfiles', '[]');
+        $this->RegisterPropertyString('EditProfileID', '');
+        $this->RegisterAttributeString('TargetProfileData', '');
         // Kept for existing configurations; new configurations use Profiles and TargetProfiles.
         $this->RegisterPropertyString('Season', 'winter');
         $this->RegisterPropertyString('Targets', '[]');
@@ -73,15 +75,50 @@ class DynamicLighting extends IPSModuleStrict
         $this->SetSelectOptions($form['elements'], 'ActiveProfile', $profileOptions);
         $this->SetListColumnOptions($form['elements'], 'TargetProfiles', 'TargetName', $targetOptions);
         $this->SetListColumnOptions($form['elements'], 'TargetProfiles', 'ProfileID', $profileOptions);
-        $this->SetFormField($form['elements'], 'TargetProfiles', 'values', $this->TargetProfiles());
+        $this->SetListFormFieldOptions($form['elements'], 'TargetProfiles', 'TargetName', $targetOptions);
+        $editProfileID = $this->EditingProfileID();
+        $profileValues = $this->TargetProfiles();
+        if ($this->ReadAttributeString('TargetProfileData') !== '') {
+            $profileValues = array_values(array_filter($profileValues, static fn (array $row): bool => (string)($row['ProfileID'] ?? '') === $editProfileID));
+        }
+        $this->SetSelectOptions($form['elements'], 'EditProfileID', $profileOptions);
+        $this->SetFormField($form['elements'], 'EditProfileID', 'value', $editProfileID);
+        $this->SetFormField($form['elements'], 'TargetProfiles', 'values', $profileValues);
         $sceneControlID = $this->ReadPropertyInteger('SceneControlID');
         $invalidController = $sceneControlID !== 0 && !in_array($sceneControlID, IPS_GetInstanceListByModuleID(self::SCENE_CONTROL_MODULE_ID), true);
         $this->SetFormField($form['elements'], 'ResetSceneControlSelection', 'visible', $invalidController);
         $sceneOptions = $this->SceneOptions($this->ReadPropertyInteger('SceneControlID'));
         $this->SetSelectOptions($form['elements'], 'OffScene', $sceneOptions);
-        $this->SetSelectOptions($form['elements'], 'TVScene', $sceneOptions);
         $this->SetListColumnOptions($form['elements'], 'SceneTriggers', 'SceneNumber', $sceneOptions);
+        $this->SetListFormFieldOptions($form['elements'], 'SceneTriggers', 'SceneNumber', $sceneOptions);
         return json_encode($form, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+    }
+
+    public function SelectProfileForEditing(string $profileID): void
+    {
+        if (!in_array($profileID, array_column($this->Profiles(), 'ProfileID'), true)) return;
+        $all = $this->TargetProfiles();
+        $stored = $this->ReadAttributeString('TargetProfileData');
+        if ($stored === '') {
+            $this->WriteAttributeString('TargetProfileData', json_encode($all, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE));
+        }
+        $values = array_values(array_filter($all, static fn (array $row): bool => (string)($row['ProfileID'] ?? '') === $profileID));
+        $this->UpdateFormField('TargetProfiles', 'values', json_encode($values, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE));
+    }
+
+    public function AddProfileRow(string $rowJSON, string $profileID): void
+    {
+        $row = json_decode($rowJSON, true, 512, JSON_THROW_ON_ERROR);
+        if (!is_array($row) || !in_array($profileID, array_column($this->Profiles(), 'ProfileID'), true)) return;
+        $all = $this->TargetProfiles();
+        $row['ProfileID'] = $profileID;
+        $row['ColorValue'] = $this->ColorToInteger($row['ColorValue'] ?? null) ?? -1;
+        $row['Temperature'] = max(0, (int)($row['Temperature'] ?? 0));
+        $row['Capture'] = $this->Translate('Take over current color');
+        $all[] = $row;
+        $this->WriteAttributeString('TargetProfileData', json_encode($all, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE));
+        $values = array_values(array_filter($all, static fn (array $entry): bool => (string)($entry['ProfileID'] ?? '') === $profileID));
+        $this->UpdateFormField('TargetProfiles', 'values', json_encode($values, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE));
     }
 
     public function DiscoverLights(int $lightInstanceID = 0, string $currentTargetsJSON = ''): void
@@ -154,8 +191,23 @@ class DynamicLighting extends IPSModuleStrict
         $currentRow['TargetName'] = $targetName;
         $currentRow['ProfileID'] = $profileID;
         $currentRow['ColorValue'] = $colorValue;
-        $settings = is_array($currentSettings) && array_is_list($currentSettings)
-            ? $this->NormalizeProfileRows($currentSettings) : $this->TargetProfiles();
+        $settings = $this->TargetProfiles();
+        if (is_array($currentSettings) && array_is_list($currentSettings)) {
+            foreach ($this->NormalizeProfileRows($currentSettings) as $pendingRow) {
+                if ((string)($pendingRow['ProfileID'] ?? '') !== $profileID) continue;
+                $pendingMatch = false;
+                foreach ($settings as &$setting) {
+                    if ((string)($setting['TargetName'] ?? '') === (string)($pendingRow['TargetName'] ?? '')
+                        && (string)($setting['ProfileID'] ?? '') === $profileID) {
+                        $setting = array_replace($setting, $pendingRow);
+                        $pendingMatch = true;
+                        break;
+                    }
+                }
+                unset($setting);
+                if (!$pendingMatch) $settings[] = $pendingRow;
+            }
+        }
         $updated = false;
         foreach ($settings as &$setting) {
             if ((string)($setting['TargetName'] ?? '') === $targetName && (string)($setting['ProfileID'] ?? '') === $profileID) {
@@ -178,7 +230,9 @@ class DynamicLighting extends IPSModuleStrict
             $setting['Capture'] = 'Übernehmen';
         }
         unset($setting);
-        $this->UpdateFormField('TargetProfiles', 'values', json_encode($settings, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE));
+        $this->WriteAttributeString('TargetProfileData', json_encode($settings, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE));
+        $visibleSettings = array_values(array_filter($settings, static fn (array $setting): bool => (string)($setting['ProfileID'] ?? '') === $profileID));
+        $this->UpdateFormField('TargetProfiles', 'values', json_encode($visibleSettings, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE));
         $this->UpdateFormField('DiscoveryStatus', 'caption', sprintf($this->Translate('Captured current color for %s / %s.'), $targetName, $this->ProfileName($profileID)));
     }
 
@@ -191,13 +245,14 @@ class DynamicLighting extends IPSModuleStrict
         $this->UpdateFormField('ResetSceneControlSelection', 'visible', 'false');
         $options = $this->SceneOptions($sceneControlID);
         $this->UpdateFormField('OffScene', 'options', json_encode($options, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE));
-        $this->UpdateFormField('TVScene', 'options', json_encode($options, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE));
         $form = $this->LoadForm();
         $this->SetListColumnOptions($form['elements'], 'SceneTriggers', 'SceneNumber', $options);
+        $this->SetListFormFieldOptions($form['elements'], 'SceneTriggers', 'SceneNumber', $options);
         foreach ($form['elements'] as $panel) {
             foreach ($panel['items'] ?? [] as $element) {
                 if (($element['name'] ?? '') === 'SceneTriggers') {
                     $this->UpdateFormField('SceneTriggers', 'columns', json_encode($element['columns'], JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE));
+                    $this->UpdateFormField('SceneTriggers', 'form', json_encode($element['form'], JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE));
                 }
             }
         }
@@ -253,7 +308,8 @@ class DynamicLighting extends IPSModuleStrict
             }
         }
         usort($options, static fn (array $a, array $b): int => $a['value'] <=> $b['value']);
-        foreach ([$this->ReadPropertyInteger('OffScene'), $this->ReadPropertyInteger('TVScene')] as $number) {
+        $sceneNumbers = array_map(static fn (array $trigger): int => (int)($trigger['SceneNumber'] ?? 0), $this->SceneTriggers());
+        foreach ([$this->ReadPropertyInteger('OffScene'), $this->ReadPropertyInteger('TVScene'), ...$sceneNumbers] as $number) {
             if ($number > 0 && !in_array($number, array_column($options, 'value'), true)) {
                 $options[] = ['caption' => sprintf($this->Translate('Scene %d (select Scene Control)'), $number), 'value' => $number, 'enabled' => false];
             }
@@ -293,6 +349,7 @@ class DynamicLighting extends IPSModuleStrict
         unset($setting);
         $this->UpdateFormField('TargetProfiles', 'values', json_encode($settings, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE));
 
+        $this->WriteAttributeString('TargetProfileData', json_encode($settings, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE));
         $remainingProfiles = array_values(array_filter(
             $this->Profiles(),
             static fn (array $profile): bool => (string)($profile['ProfileID'] ?? '') !== $profileID
@@ -306,14 +363,23 @@ class DynamicLighting extends IPSModuleStrict
             }
         }
         $this->UpdateFormField('ActiveProfile', 'options', json_encode($options, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE));
+        $this->UpdateFormField('EditProfileID', 'options', json_encode($options, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE));
         if ($this->ReadPropertyString('ActiveProfile') === $profileID) {
             $this->UpdateFormField('ActiveProfile', 'value', (string)($options[0]['value'] ?? ''));
         }
+        $editProfileID = $this->EditingProfileID();
+        if ($editProfileID === $profileID) {
+            $editProfileID = (string)($options[0]['value'] ?? '');
+            $this->UpdateFormField('EditProfileID', 'value', $editProfileID);
+        }
+        $visibleSettings = array_values(array_filter($settings, static fn (array $setting): bool => (string)($setting['ProfileID'] ?? '') === $editProfileID));
+        $this->UpdateFormField('TargetProfiles', 'values', json_encode($visibleSettings, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE));
     }
 
     public function ApplyChanges(): void
     {
         parent::ApplyChanges();
+        $this->SyncTargetProfileData();
         if ($this->RegisterVariableString('Status', $this->Translate('Status'), '', 10)) $this->SetValue('Status', '');
         if ($this->RegisterVariableFloat('Illuminance', $this->Translate('Current illuminance'), '', 20)) $this->SetValue('Illuminance', 0.0);
         IPS_SetVariableCustomPresentation($this->GetIDForIdent('Illuminance'), ['PRESENTATION' => VARIABLE_PRESENTATION_VALUE_PRESENTATION, 'SUFFIX' => ' lx', 'DIGITS' => 0]);
@@ -326,7 +392,7 @@ class DynamicLighting extends IPSModuleStrict
                 ['Value' => self::AMBIENT, 'Caption' => $this->Translate('Ambient'), 'IconValue' => '', 'IconActive' => false, 'Color' => -1],
                 ['Value' => self::OFF, 'Caption' => $this->Translate('Off'), 'IconValue' => '', 'IconActive' => false, 'Color' => -1],
                 ['Value' => self::MANUAL, 'Caption' => $this->Translate('Manual scene'), 'IconValue' => '', 'IconActive' => false, 'Color' => -1],
-                ['Value' => self::TV, 'Caption' => $this->Translate('TV scene'), 'IconValue' => '', 'IconActive' => false, 'Color' => -1]
+                ['Value' => self::TV, 'Caption' => $this->Translate('Priority scene'), 'IconValue' => '', 'IconActive' => false, 'Color' => -1]
             ], JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE), 'DISPLAY' => 2, 'LAYOUT' => 1
         ]);
         $this->MaintainAction('Mode', true);
@@ -354,9 +420,13 @@ class DynamicLighting extends IPSModuleStrict
             $this->HandleActiveScene((string)GetValue($senderID));
         }
         foreach ($this->SceneTriggers() as $trigger) {
-            if ((int)($trigger['VariableID'] ?? 0) === $senderID && (bool)GetValue($senderID)) {
-                $this->CallScene((int)($trigger['SceneNumber'] ?? 0));
-                $this->SetValue('Mode', self::MANUAL);
+            if ((int)($trigger['VariableID'] ?? 0) === $senderID) {
+                if ((bool)GetValue($senderID)) {
+                    $this->CallScene((int)($trigger['SceneNumber'] ?? 0));
+                    $this->SetValue('Mode', !empty($trigger['Priority']) ? self::TV : self::MANUAL);
+                } elseif (!empty($trigger['ResumeOnFalse']) && !$this->HasActiveSceneTrigger()) {
+                    $this->SetValue('Mode', self::AMBIENT);
+                }
             }
         }
         $this->Evaluate();
@@ -382,7 +452,7 @@ class DynamicLighting extends IPSModuleStrict
             $this->SetValue('Status', $this->Translate('Off'));
         } elseif ($value === self::TV) {
             $this->CallScene($this->ReadPropertyInteger('TVScene'));
-            $this->SetValue('Status', $this->Translate('TV scene active'));
+            $this->SetValue('Status', $this->Translate('Priority scene active'));
         } elseif ($value === self::MANUAL) {
             $this->SetValue('Status', $this->Translate('Manual scene'));
         } else {
@@ -418,25 +488,30 @@ class DynamicLighting extends IPSModuleStrict
         }
         $lux = (float)GetValue($this->ReadPropertyInteger('LuxVariableID'));
         $this->SetValue('Illuminance', $lux);
-        $tvID = $this->ReadPropertyInteger('TVVariableID');
-        $tvOn = $tvID > 0 && IPS_VariableExists($tvID) && (bool)GetValue($tvID);
         $mode = (int)$this->GetValue('Mode');
-        if ($tvOn) {
-            if ($mode !== self::TV) {
-                $this->CallScene($this->ReadPropertyInteger('TVScene'));
+        $priorityTrigger = $this->ActivePriorityTrigger();
+        if ($priorityTrigger !== null) {
+            $priorityScene = (int)($priorityTrigger['SceneNumber'] ?? 0);
+            if ($mode !== self::TV || $this->CurrentSceneNumber() !== $priorityScene) {
+                $this->CallScene($priorityScene);
                 $this->SetValue('Mode', self::TV);
             }
-            $this->SetValue('Status', $this->Translate('TV scene active'));
+            $this->SetValue('Status', $this->Translate('Priority scene active'));
             return;
         }
         if ($mode === self::TV) {
-            if ($this->WithinSchedule() && $this->Enabled() && $lux < $this->ReadPropertyInteger('DarkLux')) {
+            $resumePriorityScene = false;
+            foreach ($this->SceneTriggers() as $trigger) {
+                if (!empty($trigger['Priority']) && !empty($trigger['ResumeOnFalse'])) {
+                    $resumePriorityScene = true;
+                    break;
+                }
+            }
+            if ($resumePriorityScene) {
                 $this->SetValue('Mode', self::AMBIENT);
                 $mode = self::AMBIENT;
             } else {
-                $this->SetValue('Mode', self::AMBIENT);
-                $this->TurnLightsOff();
-                $this->SetValue('Status', $this->Translate('Outside schedule'));
+                $this->SetValue('Mode', self::MANUAL);
                 return;
             }
         }
@@ -486,10 +561,14 @@ class DynamicLighting extends IPSModuleStrict
             $settings = $this->TargetProfile($target, $profileID);
             $colorValue = $settings['ColorValue'] ?? null;
             $color = $this->ColorToInteger($colorValue);
-            if ($id > 0 && $color !== null && IPS_VariableExists($id)) RequestAction($id, $color);
             $id = (int)($target['TemperatureID'] ?? 0);
             $temperature = (int)($settings['Temperature'] ?? 0);
-            if ($id > 0 && $temperature > 0 && IPS_VariableExists($id)) RequestAction($id, $temperature);
+            if ($id > 0 && $temperature > 0 && IPS_VariableExists($id)) {
+                RequestAction($id, $temperature);
+            } else {
+                $id = (int)($target['ColorID'] ?? 0);
+                if ($id > 0 && $color !== null && IPS_VariableExists($id)) RequestAction($id, $color);
+            }
         }
     }
 
@@ -653,6 +732,19 @@ class DynamicLighting extends IPSModuleStrict
         unset($element);
     }
 
+    private function SetListFormFieldOptions(array &$elements, string $listName, string $fieldName, array $options): void
+    {
+        foreach ($elements as &$element) {
+            if (($element['name'] ?? '') === $listName && isset($element['form']) && is_array($element['form'])) {
+                $this->SetSelectOptions($element['form'], $fieldName, $options);
+            }
+            if (isset($element['items']) && is_array($element['items'])) {
+                $this->SetListFormFieldOptions($element['items'], $listName, $fieldName, $options);
+            }
+        }
+        unset($element);
+    }
+
     private function ScanLightInstance(int $lightInstanceID): array
     {
         $candidate = [
@@ -701,7 +793,8 @@ class DynamicLighting extends IPSModuleStrict
 
     private function TargetProfiles(): array
     {
-        $rows = json_decode($this->ReadPropertyString('TargetProfiles'), true);
+        $stored = $this->ReadAttributeString('TargetProfileData');
+        $rows = json_decode($stored !== '' ? $stored : $this->ReadPropertyString('TargetProfiles'), true);
         $rows = $this->NormalizeProfileRows(is_array($rows) ? $rows : []);
         // Offer legacy seasonal values in the profile table for the user to save.
         foreach ($this->Targets() as $target) {
@@ -723,6 +816,35 @@ class DynamicLighting extends IPSModuleStrict
             }
         }
         return $rows;
+    }
+
+    private function EditingProfileID(): string
+    {
+        $profileID = $this->ReadPropertyString('EditProfileID');
+        if ($profileID !== '' && in_array($profileID, array_column($this->Profiles(), 'ProfileID'), true)) return $profileID;
+        $active = $this->ReadPropertyString('ActiveProfile');
+        return in_array($active, array_column($this->Profiles(), 'ProfileID'), true) ? $active : (string)($this->Profiles()[0]['ProfileID'] ?? '');
+    }
+
+    private function SyncTargetProfileData(): void
+    {
+        $stored = $this->ReadAttributeString('TargetProfileData');
+        $propertyRows = json_decode($this->ReadPropertyString('TargetProfiles'), true);
+        $propertyRows = $this->NormalizeProfileRows(is_array($propertyRows) ? $propertyRows : []);
+        if ($stored === '') {
+            $all = $propertyRows;
+        } else {
+            $all = json_decode($stored, true);
+            $all = $this->NormalizeProfileRows(is_array($all) ? $all : []);
+            $editing = $this->EditingProfileID();
+            if ($editing !== '') {
+                $all = array_values(array_filter($all, static fn (array $row): bool => (string)($row['ProfileID'] ?? '') !== $editing));
+                foreach ($propertyRows as $row) {
+                    if ((string)($row['ProfileID'] ?? '') === $editing) $all[] = $row;
+                }
+            }
+        }
+        $this->WriteAttributeString('TargetProfileData', json_encode(array_values($all), JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE));
     }
 
     private function NormalizeProfileRows(array $rows): array
@@ -790,7 +912,43 @@ class DynamicLighting extends IPSModuleStrict
     private function SceneTriggers(): array
     {
         $rows = json_decode($this->ReadPropertyString('SceneTriggers'), true);
-        return is_array($rows) ? $rows : [];
+        $rows = is_array($rows) ? array_values(array_filter($rows, 'is_array')) : [];
+        foreach ($rows as &$row) {
+            if (!isset($row['SceneNumber']) && isset($row['Scene'])) $row['SceneNumber'] = $row['Scene'];
+            $row['Priority'] = (bool)($row['Priority'] ?? false);
+            $row['ResumeOnFalse'] = (bool)($row['ResumeOnFalse'] ?? false);
+        }
+        unset($row);
+        $tvID = $this->ReadPropertyInteger('TVVariableID');
+        if ($tvID > 0 && !array_filter($rows, static fn (array $row): bool => (int)($row['VariableID'] ?? 0) === $tvID)) {
+            $rows[] = ['VariableID' => $tvID, 'SceneNumber' => $this->ReadPropertyInteger('TVScene'), 'Priority' => true, 'ResumeOnFalse' => true];
+        }
+        return $rows;
+    }
+
+    private function HasActiveSceneTrigger(): bool
+    {
+        foreach ($this->SceneTriggers() as $trigger) {
+            $id = (int)($trigger['VariableID'] ?? 0);
+            if ($id > 0 && IPS_VariableExists($id) && (bool)GetValue($id)) return true;
+        }
+        return false;
+    }
+
+    private function ActivePriorityTrigger(): ?array
+    {
+        foreach ($this->SceneTriggers() as $trigger) {
+            $id = (int)($trigger['VariableID'] ?? 0);
+            if (!empty($trigger['Priority']) && $id > 0 && IPS_VariableExists($id) && (bool)GetValue($id)) return $trigger;
+        }
+        return null;
+    }
+
+    private function CurrentSceneNumber(): ?int
+    {
+        $id = $this->ReadPropertyInteger('ActiveSceneID');
+        if ($id <= 0 || !IPS_VariableExists($id)) return null;
+        return preg_match('/(?:^|\D)(\d+)(?:\D|$)/', (string)GetValue($id), $matches) === 1 ? (int)$matches[1] : null;
     }
 
     private function VisualizationPayload(): string
@@ -799,7 +957,7 @@ class DynamicLighting extends IPSModuleStrict
         $label = match ($mode) {
             self::OFF => $this->Translate('Off'),
             self::MANUAL => $this->Translate('Manual scene'),
-            self::TV => $this->Translate('TV scene'),
+            self::TV => $this->Translate('Priority scene'),
             default => $this->Translate('Ambient')
         };
         $checks = [
