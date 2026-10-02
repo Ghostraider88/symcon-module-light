@@ -152,6 +152,10 @@ $module->properties['Profiles'] = json_encode([
 $module->attributes['SelectedProfileID'] = 'winter-profile';
 $effectiveProfile = new ReflectionMethod(DynamicLighting::class, 'EffectiveActiveProfile');
 check($effectiveProfile->invoke($module) === 'winter-profile', 'Visualization profile selection should override the configured default');
+$displayProfile = new ReflectionMethod(DynamicLighting::class, 'ProfileDisplayValue');
+check($displayProfile->invoke($module, 'winter-profile') === 'Winter', 'Profile variable value should show the profile name instead of its internal ID');
+$profileOptions = new ReflectionMethod(DynamicLighting::class, 'ProfilePresentationOptions');
+check(array_column($profileOptions->invoke($module), 'Value') === ['Summer', 'Winter'], 'Visualization options should use readable profile names');
 $module->attributes['SelectedProfileID'] = 'removed-profile';
 check($effectiveProfile->invoke($module) === 'summer-profile', 'An unavailable visualization selection should fall back to the configured default');
 $module->attributes['SelectedProfileID'] = '';

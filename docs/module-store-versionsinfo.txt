@@ -1,3 +1,6 @@
+Build 8 (2026-10-02)
+korrigiert: Die Profil-Variable zeigt Profilnamen statt kryptischer interner IDs.
+
 Build 7 (2026-10-02)
 neu: Aktives Lichtprofil über die schaltbare Profil-Variable in der Visu auswählbar; Auswahl wird gespeichert.
 
