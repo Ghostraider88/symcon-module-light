@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.1 - Build 10 - 2026-10-02
+
+- Rename the mode label from Ambient to Automatic for clarity.
+
 ## 1.1 - Build 9 - 2026-10-02
 
 - Change the selectable Profile status variable to an integer enumeration with the configured profile names.
