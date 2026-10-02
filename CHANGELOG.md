@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.1 - Build 7 - 2026-10-02
+
+- Add a selectable Profile status variable for choosing the active lighting profile from a visualization.
+
 ## 1.1 - Build 6 - 2026-10-02
 
 - Add per-profile minimum and maximum brightness overrides for each light; `-1` inherits the light target's default.

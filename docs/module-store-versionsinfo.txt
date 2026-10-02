@@ -1,3 +1,6 @@
+Build 7 (2026-10-02)
+neu: Aktives Lichtprofil über die schaltbare Profil-Variable in der Visu auswählbar; Auswahl wird gespeichert.
+
 Build 6 (2026-10-02)
 neu: Mindest- und Maximalhelligkeit je Licht und Profil einstellbar; -1 übernimmt den Standard des Lichtziels.
 

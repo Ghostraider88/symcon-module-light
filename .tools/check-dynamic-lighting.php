@@ -76,6 +76,7 @@ require __DIR__ . '/../DynamicLighting/module.php';
 $module = new DynamicLighting();
 $module->properties = [
     'Profiles' => json_encode([['ProfileID' => 'summer-profile', 'Name' => 'Summer']], JSON_THROW_ON_ERROR),
+    'ActiveProfile' => 'summer-profile',
     'TargetProfiles' => json_encode([['TargetName' => 'Sink', 'ProfileID' => 'summer-profile', 'ColorValue' => '#FF0000', 'Temperature' => 0]], JSON_THROW_ON_ERROR),
     'Targets' => json_encode([['Name' => 'Sink', 'SwitchID' => 57005, 'ColorID' => 43668, 'MaxBrightness' => 42]], JSON_THROW_ON_ERROR),
     'SceneControlID' => 41254, 'OffScene' => 1, 'TVScene' => 5
@@ -148,6 +149,12 @@ $module->properties['Profiles'] = json_encode([
     ['ProfileID' => 'summer-profile', 'Name' => 'Summer'],
     ['ProfileID' => 'winter-profile', 'Name' => 'Winter']
 ], JSON_THROW_ON_ERROR);
+$module->attributes['SelectedProfileID'] = 'winter-profile';
+$effectiveProfile = new ReflectionMethod(DynamicLighting::class, 'EffectiveActiveProfile');
+check($effectiveProfile->invoke($module) === 'winter-profile', 'Visualization profile selection should override the configured default');
+$module->attributes['SelectedProfileID'] = 'removed-profile';
+check($effectiveProfile->invoke($module) === 'summer-profile', 'An unavailable visualization selection should fall back to the configured default');
+$module->attributes['SelectedProfileID'] = '';
 $allSettings = $pendingSettings;
 $allSettings[] = ['TargetName' => 'Sink', 'ProfileID' => 'winter-profile', 'ColorValue' => 255, 'Temperature' => 2700];
 $module->attributes['TargetProfileData'] = json_encode($allSettings, JSON_THROW_ON_ERROR);

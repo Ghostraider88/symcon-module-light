@@ -42,9 +42,10 @@
                                         {
                                             "type":  "Select",
                                             "name":  "ActiveProfile",
-                                            "caption":  "Active light profile",
+                                            "caption":  "Default profile",
                                             "options":  []
                                         },
+                                        {"type":"Label","caption":"The Profile status variable can be used in a visualization to switch profiles at runtime."},
                                         {
                                             "type":  "List",
                                             "name":  "Profiles",
@@ -74,7 +75,7 @@
                                         {
                                             "type":  "Label",
                                             "name":  "ProfileHelp",
-                                            "caption":  "Create, edit, and delete profiles here. Each light can have separate values for every profile."
+                                            "caption":  "Create, edit, and delete profiles here. Each light can have separate values for every profile. The Profile status variable can switch the active profile in a visualization."
                                         }
                                    ]
                      },

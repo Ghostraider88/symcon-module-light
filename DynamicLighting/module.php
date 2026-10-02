@@ -38,6 +38,7 @@ class DynamicLighting extends IPSModuleStrict
         $this->RegisterPropertyString('TargetProfiles', '[]');
         $this->RegisterPropertyString('EditProfileID', '');
         $this->RegisterAttributeString('TargetProfileData', '');
+        $this->RegisterAttributeString('SelectedProfileID', '');
         // Kept for existing configurations; new configurations use Profiles and TargetProfiles.
         $this->RegisterPropertyString('Season', 'winter');
         $this->RegisterPropertyString('Targets', '[]');
@@ -343,6 +344,9 @@ class DynamicLighting extends IPSModuleStrict
 
     public function DeleteProfile(string $profileID): void
     {
+        if ($this->ReadAttributeString('SelectedProfileID') === $profileID) {
+            $this->WriteAttributeString('SelectedProfileID', '');
+        }
         $settings = array_values(array_filter(
             $this->TargetProfiles(),
             static fn (array $setting): bool => (string)($setting['ProfileID'] ?? '') !== $profileID
@@ -389,6 +393,25 @@ class DynamicLighting extends IPSModuleStrict
         IPS_SetVariableCustomPresentation($this->GetIDForIdent('Illuminance'), ['PRESENTATION' => VARIABLE_PRESENTATION_VALUE_PRESENTATION, 'SUFFIX' => ' lx', 'DIGITS' => 0]);
         if ($this->RegisterVariableInteger('CalculatedBrightness', $this->Translate('Calculated brightness'), '', 30)) $this->SetValue('CalculatedBrightness', 0);
         IPS_SetVariableCustomPresentation($this->GetIDForIdent('CalculatedBrightness'), ['PRESENTATION' => VARIABLE_PRESENTATION_VALUE_PRESENTATION, 'SUFFIX' => ' %', 'MIN' => 0, 'MAX' => 100, 'DIGITS' => 0]);
+        if ($this->RegisterVariableString('Profile', $this->Translate('Light profile'), '', 35)) {
+            $this->SetValue('Profile', $this->EffectiveActiveProfile());
+        }
+        IPS_SetVariableCustomPresentation($this->GetIDForIdent('Profile'), [
+            'PRESENTATION' => VARIABLE_PRESENTATION_VALUE_PRESENTATION,
+            'OPTIONS' => json_encode(array_map(static fn (array $profile): array => [
+                'Value' => (string)$profile['ProfileID'],
+                'Caption' => (string)$profile['Name'],
+                'IconValue' => '', 'IconActive' => false, 'Color' => -1
+            ], $this->Profiles()), JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE),
+            'DISPLAY' => 2, 'LAYOUT' => 1
+        ]);
+        $this->MaintainAction('Profile', true);
+        $selectedProfile = $this->EffectiveActiveProfile();
+        $storedProfile = $this->ReadAttributeString('SelectedProfileID');
+        if ($storedProfile !== '' && !in_array($storedProfile, array_column($this->Profiles(), 'ProfileID'), true)) {
+            $this->WriteAttributeString('SelectedProfileID', '');
+        }
+        if ($this->GetValue('Profile') !== $selectedProfile) $this->SetValue('Profile', $selectedProfile);
         if ($this->RegisterVariableInteger('Mode', $this->Translate('Mode'), '', 40)) $this->SetValue('Mode', self::AMBIENT);
         IPS_SetVariableCustomPresentation($this->GetIDForIdent('Mode'), [
             'PRESENTATION' => VARIABLE_PRESENTATION_ENUMERATION,
@@ -445,6 +468,13 @@ class DynamicLighting extends IPSModuleStrict
         }
         if ($ident === 'SwitchOff' && $value === true) {
             $this->SwitchOff();
+            return;
+        }
+        if ($ident === 'Profile' && is_string($value)
+            && in_array($value, array_column($this->Profiles(), 'ProfileID'), true)) {
+            $this->WriteAttributeString('SelectedProfileID', $value);
+            $this->SetValue('Profile', $value);
+            $this->EvaluateAndRefresh();
             return;
         }
         if ($ident !== 'Mode' || !is_int($value) || !in_array($value, [self::AMBIENT, self::OFF, self::MANUAL, self::TV], true)) {
@@ -548,7 +578,7 @@ class DynamicLighting extends IPSModuleStrict
     private function ApplyTargets(int $percent): void
     {
         $this->SetBuffer('OutputOff', '0');
-        $profileID = $this->ReadPropertyString('ActiveProfile');
+        $profileID = $this->EffectiveActiveProfile();
         foreach ($this->Targets() as $target) {
             $settings = $this->TargetProfile($target, $profileID);
             $targetMaximum = max(1, min(100, (int)($target['MaxBrightness'] ?? 100)));
@@ -833,6 +863,15 @@ class DynamicLighting extends IPSModuleStrict
         if ($profileID !== '' && in_array($profileID, array_column($this->Profiles(), 'ProfileID'), true)) return $profileID;
         $active = $this->ReadPropertyString('ActiveProfile');
         return in_array($active, array_column($this->Profiles(), 'ProfileID'), true) ? $active : (string)($this->Profiles()[0]['ProfileID'] ?? '');
+    }
+
+    private function EffectiveActiveProfile(): string
+    {
+        $profileIDs = array_column($this->Profiles(), 'ProfileID');
+        $selected = $this->ReadAttributeString('SelectedProfileID');
+        if ($selected !== '' && in_array($selected, $profileIDs, true)) return $selected;
+        $configured = $this->ReadPropertyString('ActiveProfile');
+        return in_array($configured, $profileIDs, true) ? $configured : (string)($profileIDs[0] ?? '');
     }
 
     private function SyncTargetProfileData(): void
