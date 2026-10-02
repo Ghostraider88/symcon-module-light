@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.1 - Build 14 - 2026-10-02
+
+- Reapply the active priority scene after a different scene is selected while its trigger remains active.
+
+
 ## 1.1 - Build 13 - 2026-10-02
 
 - Prevent repeated calls to a priority scene while its Boolean trigger remains active.

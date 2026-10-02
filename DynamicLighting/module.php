@@ -295,6 +295,10 @@ class DynamicLighting extends IPSModuleStrict
         $this->SetBuffer('RequestedScene', '');
         $this->SetBuffer('RequestedSceneUntil', '');
         if ($active === $requested && $deadline >= time()) return;
+        $priorityScene = (int)$this->GetBuffer('PrioritySceneNumber');
+        if ($priorityScene > 0 && $active !== $priorityScene) {
+            $this->SetBuffer('PrioritySceneNumber', '');
+        }
         $this->SetValue('Mode', self::MANUAL);
         $this->SetValue('Status', $this->Translate('Manual scene') . ': ' . $name);
         $this->SetBuffer('OutputOff', '0');
