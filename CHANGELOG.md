@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.1 - Build 13 - 2026-10-02
+
+- Prevent repeated calls to a priority scene while its Boolean trigger remains active.
+- Track the requested scene number directly instead of parsing it from the active-scene label.
+
+
 ## 1.1 - Build 12 - 2026-10-02
 
 - Treat a deleted optional enable variable as unset so it no longer blocks ambient lighting.

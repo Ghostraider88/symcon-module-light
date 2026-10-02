@@ -1,3 +1,6 @@
+Build 13 (2026-10-02)
+geändert: Vorrangszenen werden pro Aktivierung nur einmal aufgerufen; erneutes Laden anhand des aktiven Szenennamens entfällt.
+
 Build 12 (2026-10-02)
 korrigiert: Eine gelöschte optionale Freigabevariable wird wie eine nicht konfigurierte Variable behandelt.
 

@@ -449,10 +449,17 @@ class DynamicLighting extends IPSModuleStrict
                     $luxID = $this->ReadPropertyInteger('LuxVariableID');
                     $lux = $luxID > 0 && IPS_VariableExists($luxID) ? (float)GetValue($luxID) : INF;
                     if ($this->TriggerMayActivate($trigger, $lux)) {
-                        $this->CallScene((int)($trigger['SceneNumber'] ?? 0));
-                        $this->SetValue('Mode', !empty($trigger['Priority']) ? self::TV : self::MANUAL);
+                        $sceneNumber = (int)($trigger['SceneNumber'] ?? 0);
+                        $this->CallScene($sceneNumber);
+                        if (!empty($trigger['Priority'])) {
+                            $this->SetBuffer('PrioritySceneNumber', (string)$sceneNumber);
+                            $this->SetValue('Mode', self::TV);
+                        } else {
+                            $this->SetValue('Mode', self::MANUAL);
+                        }
                     }
                 } elseif (!empty($trigger['ResumeOnFalse']) && !$this->HasActiveSceneTrigger()) {
+                    $this->SetBuffer('PrioritySceneNumber', '');
                     $this->SetValue('Mode', self::AMBIENT);
                 }
             }
@@ -528,10 +535,11 @@ class DynamicLighting extends IPSModuleStrict
         $priorityTrigger = $this->ActivePriorityTrigger($lux);
         if ($priorityTrigger !== null) {
             $priorityScene = (int)($priorityTrigger['SceneNumber'] ?? 0);
-            if ($mode !== self::TV || $this->CurrentSceneNumber() !== $priorityScene) {
+            if ((int)$this->GetBuffer('PrioritySceneNumber') !== $priorityScene) {
                 $this->CallScene($priorityScene);
-                $this->SetValue('Mode', self::TV);
+                $this->SetBuffer('PrioritySceneNumber', (string)$priorityScene);
             }
+            if ($mode !== self::TV) $this->SetValue('Mode', self::TV);
             $this->SetValue('Status', $this->Translate('Priority scene active'));
             return;
         }
@@ -544,6 +552,7 @@ class DynamicLighting extends IPSModuleStrict
                 }
             }
             if ($resumePriorityScene) {
+                $this->SetBuffer('PrioritySceneNumber', '');
                 $this->SetValue('Mode', self::AMBIENT);
                 $mode = self::AMBIENT;
             } else {
@@ -1035,12 +1044,6 @@ class DynamicLighting extends IPSModuleStrict
         return $percent > 0;
     }
 
-    private function CurrentSceneNumber(): ?int
-    {
-        $id = $this->ReadPropertyInteger('ActiveSceneID');
-        if ($id <= 0 || !IPS_VariableExists($id)) return null;
-        return preg_match('/(?:^|\D)(\d+)(?:\D|$)/', (string)GetValue($id), $matches) === 1 ? (int)$matches[1] : null;
-    }
 
     private function VisualizationPayload(): string
     {
