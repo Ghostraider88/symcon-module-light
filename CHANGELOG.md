@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.1 - Build 15 - 2026-10-19
+
+- Smooth lux readings and add switch hysteresis, stability timing, and brightness step filtering to reduce twilight flicker.
+- Turn ambient mode off at the start of the Good Night scene and restore it in Good Morning; keep the staircase and mirror lights on.
+- Fix the sample module timer syntax so the library reloads without errors.
+
 ## 1.1 - Build 14 - 2026-10-02
 
 - Reapply the active priority scene after a different scene is selected while its trigger remains active.

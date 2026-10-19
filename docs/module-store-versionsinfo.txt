@@ -1,3 +1,8 @@
+Build 15 (2026-10-19)
+geändert: Dämmerungsflackern durch Lux-Glättung, Hysterese, Stabilitätszeit und minimale Helligkeitsschritte reduziert.
+geändert: Gute Nacht schaltet die Automatik zuerst aus; Guten Morgen aktiviert sie wieder. Stufenleuchte und Spiegel bleiben eingeschaltet.
+korrigiert: Timer-Syntax im Beispielmodul, damit die Bibliothek fehlerfrei neu lädt.
+
 Build 14 (2026-10-02)
 geändert: Bei weiterhin aktivem Vorrang-Auslöser wird die Vorrangszene nach einem anderen Szenenwechsel erneut geladen.
 
@@ -40,10 +45,4 @@ Build 3 (2026-10-01)
 korrigiert: Scene Control über eine Liste vorhandener Instanzen auswählen; der fehlerhafte Baumdialog der Konsole wird umgangen.
 korrigiert: Ungültige gespeicherte Scene-Control-IDs werden als nicht verfügbar angezeigt und können neu zugeordnet werden.
 
-Build 2 (2026-10-01)
-geändert: Eine Leuchteninstanz auswählen und deren Lichtvariablen erkennen statt Kategorien durchsuchen.
-korrigiert: RGB-Farbe und Kelvin bevorzugen; alternative Farbvariablen und Mired-Profile werden nicht versehentlich verwendet.
-korrigiert: Aktuelle Farbe numerisch übernehmen und bestehende Farbwerte korrekt im Profil anzeigen.
-geändert: Doppelte Saisonfelder entfernt; Farbe und Kelvin über Lichtwerte je Profil konfigurieren.
-neu: Echte Szenennamen zur Auswahl und automatische Zuordnung der aktiven Szene aus Scene Control.
-neu: Erklärung der Szenenpriorität und Rückkehr zur Umgebungssteuerung im Formular.
+Ältere Historie: siehe CHANGELOG.md
