@@ -603,7 +603,7 @@ class DynamicLighting extends IPSModuleStrict
                 $lastPercent = (int)$this->GetBuffer('LastAppliedPercent');
                 $minimumStep = max(1, min(100, $this->ReadPropertyInteger('MinimumBrightnessStep')));
                 if ($stateChanged || $this->GetBuffer('OutputOff') !== '0' || $lastPercent <= 0
-                    || abs($percent - $lastPercent) >= $minimumStep) {
+                    || abs($percent - $lastPercent) >= $minimumStep || $this->TargetsNeedRefresh($percent)) {
                     $this->ApplyTargets($percent);
                 }
             }
@@ -715,6 +715,33 @@ class DynamicLighting extends IPSModuleStrict
                 if ($id > 0 && $color !== null && IPS_VariableExists($id)) $this->RequestActionIfChanged($id, $color);
             }
         }
+    }
+
+    private function TargetsNeedRefresh(int $percent): bool
+    {
+        $profileID = $this->EffectiveActiveProfile();
+        foreach ($this->Targets() as $target) {
+            $settings = $this->TargetProfile($target, $profileID);
+            $targetMaximum = max(1, min(100, (int)($target['MaxBrightness'] ?? 100)));
+            $targetMinimum = max(0, min($targetMaximum, (int)($target['MinBrightness'] ?? 0)));
+            $maximumSetting = (int)($settings['MaxBrightness'] ?? -1);
+            $minimumSetting = (int)($settings['MinBrightness'] ?? -1);
+            $maximum = $maximumSetting >= 0 ? min(100, $maximumSetting) : $targetMaximum;
+            $minimum = $minimumSetting >= 0 ? min($maximum, $minimumSetting) : min($maximum, $targetMinimum);
+            $brightness = (int)round($minimum + ($maximum - $minimum) * $percent / 100);
+
+            $id = (int)($target['BrightnessID'] ?? 0);
+            if ($id > 0 && IPS_VariableExists($id)) {
+                $scale = (int)($target['BrightnessScale'] ?? 100) === 255 ? 255 : 100;
+                $expectedBrightness = (int)round($brightness * $scale / 100);
+                if (abs((float)GetValue($id) - $expectedBrightness) > 0.5) return true;
+            }
+
+            $id = (int)($target['SwitchID'] ?? 0);
+            if ($id > 0 && IPS_VariableExists($id) && (bool)GetValue($id) !== ($brightness > 0)) return true;
+        }
+
+        return false;
     }
 
     private function RequestActionIfChanged(int $id, bool|int $value): void

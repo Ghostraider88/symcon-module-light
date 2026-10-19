@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.1 - Build 16 - 2026-10-19
+
+- Reapply ambient targets when their actual switch or brightness values do not match the calculated output, even if the brightness change is below the minimum step.
+
 ## 1.1 - Build 15 - 2026-10-19
 
 - Smooth lux readings and add switch hysteresis, stability timing, and brightness step filtering to reduce twilight flicker.

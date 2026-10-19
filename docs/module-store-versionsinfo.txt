@@ -1,3 +1,6 @@
+Build 16 (2026-10-19)
+korrigiert: Die Automatik gleicht Schalter- und Helligkeitswerte der Lampen wieder mit der berechneten Helligkeit ab, auch wenn die Änderung unter dem Mindestschritt liegt.
+
 Build 15 (2026-10-19)
 geändert: Dämmerungsflackern durch Lux-Glättung, Hysterese, Stabilitätszeit und minimale Helligkeitsschritte reduziert.
 geändert: Gute Nacht schaltet die Automatik zuerst aus; Guten Morgen aktiviert sie wieder. Stufenleuchte und Spiegel bleiben eingeschaltet.
