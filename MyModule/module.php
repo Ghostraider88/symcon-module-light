@@ -24,7 +24,7 @@ class MyModule extends IPSModuleStrict
         $this->RegisterPropertyInteger('Interval', 0); // Sekunden; 0 = Timer aus
         $this->RegisterAttributeString('LastResponse', '');
 
-        $this->RegisterTimer('UpdateTimer', 0, 'MYM_Update($_IPS['TARGET']);');
+        $this->RegisterTimer('UpdateTimer', 0, 'MYM_Update($_IPS[\'TARGET\']);');
     }
 
     public function ApplyChanges(): void
