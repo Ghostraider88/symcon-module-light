@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.1 - Build 17 - 2026-10-19
+
+- Limit retries for mismatched target states to one apply every two minutes so offline devices do not receive repeated commands on every lux update.
+
 ## 1.1 - Build 16 - 2026-10-19
 
 - Reapply ambient targets when their actual switch or brightness values do not match the calculated output, even if the brightness change is below the minimum step.

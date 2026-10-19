@@ -11,6 +11,7 @@ class DynamicLighting extends IPSModuleStrict
     private const OFF = 1;
     private const MANUAL = 2;
     private const TV = 3;
+    private const TARGET_REFRESH_RETRY_SECONDS = 120;
     private const SCENE_CONTROL_MODULE_ID = '{87F46796-CC43-442D-94FD-AAA0BD8D9F54}';
     private const PROFILE_SPRING = '{4AD0B7A1-5A2B-4E53-A261-11E8FC522101}';
     private const PROFILE_SUMMER = '{4AD0B7A1-5A2B-4E53-A261-11E8FC522102}';
@@ -602,8 +603,13 @@ class DynamicLighting extends IPSModuleStrict
                 $percent = max(1, $percent);
                 $lastPercent = (int)$this->GetBuffer('LastAppliedPercent');
                 $minimumStep = max(1, min(100, $this->ReadPropertyInteger('MinimumBrightnessStep')));
-                if ($stateChanged || $this->GetBuffer('OutputOff') !== '0' || $lastPercent <= 0
-                    || abs($percent - $lastPercent) >= $minimumStep || $this->TargetsNeedRefresh($percent)) {
+                $needsApply = $stateChanged || $this->GetBuffer('OutputOff') !== '0' || $lastPercent <= 0
+                    || abs($percent - $lastPercent) >= $minimumStep;
+                if (!$needsApply && $this->TargetsNeedRefresh($percent)) {
+                    $lastTargetsApplyAt = (int)$this->GetBuffer('LastTargetsApplyAt');
+                    $needsApply = $lastTargetsApplyAt <= 0 || time() - $lastTargetsApplyAt >= self::TARGET_REFRESH_RETRY_SECONDS;
+                }
+                if ($needsApply) {
                     $this->ApplyTargets($percent);
                 }
             }
@@ -685,6 +691,7 @@ class DynamicLighting extends IPSModuleStrict
         $this->SetBuffer('OutputOff', '0');
         $this->SetBuffer('AmbientActive', '1');
         $this->SetBuffer('LastAppliedPercent', (string)$percent);
+        $this->SetBuffer('LastTargetsApplyAt', (string)time());
         $profileID = $this->EffectiveActiveProfile();
         foreach ($this->Targets() as $target) {
             $settings = $this->TargetProfile($target, $profileID);
