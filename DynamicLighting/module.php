@@ -25,6 +25,10 @@ class DynamicLighting extends IPSModuleStrict
         $this->RegisterPropertyInteger('EnableVariableID', 0);
         $this->RegisterPropertyInteger('BrightLux', 300);
         $this->RegisterPropertyInteger('DarkLux', 2500);
+        $this->RegisterPropertyInteger('LuxHysteresis', 150);
+        $this->RegisterPropertyInteger('LuxSmoothingSeconds', 180);
+        $this->RegisterPropertyInteger('LuxStabilitySeconds', 120);
+        $this->RegisterPropertyInteger('MinimumBrightnessStep', 5);
         $this->RegisterPropertyString('StartTime', '16:00');
         $this->RegisterPropertyString('EndTime', '23:00');
         $this->RegisterPropertyInteger('DiscoveryInstanceID', 0);
@@ -301,7 +305,12 @@ class DynamicLighting extends IPSModuleStrict
         }
         $this->SetValue('Mode', self::MANUAL);
         $this->SetValue('Status', $this->Translate('Manual scene') . ': ' . $name);
-        $this->SetBuffer('OutputOff', '0');
+        $isOffScene = $active === $this->ReadPropertyInteger('OffScene');
+        $this->SetBuffer('OutputOff', $isOffScene ? '1' : '0');
+        $this->SetBuffer('AmbientActive', $isOffScene ? '0' : '1');
+        $this->SetBuffer('PendingLuxState', '');
+        $this->SetBuffer('PendingLuxSince', '');
+        $this->SetBuffer('LastAppliedPercent', $isOffScene ? '0' : '');
     }
 
     private function SceneOptions(int $sceneControlID): array
@@ -578,21 +587,104 @@ class DynamicLighting extends IPSModuleStrict
             $this->SetValue('Status', $this->Translate('Invalid lux thresholds'));
             return;
         }
-        $percent = $lux >= $high ? 0 : (int)round(max(0.0, min(1.0, ($high - $lux) / ($high - $low))) * 100);
-        $this->SetValue('CalculatedBrightness', $percent);
-        if ($percent === 0) {
-            $this->TurnLightsOff();
+        $filteredLux = $this->FilterLux($lux);
+        [$ambientActive, $stateChanged] = $this->ResolveAmbientState($filteredLux);
+        if (!$ambientActive) {
+            $this->SetValue('CalculatedBrightness', 0);
+            if ($stateChanged || $this->GetBuffer('OutputOff') !== '1') $this->TurnLightsOff();
             $this->SetValue('Status', $this->Translate('Bright enough'));
         } else {
-            $this->ApplyTargets($percent);
+            if ($filteredLux >= $high) {
+                // Hold the last output while waiting for the off threshold to remain stable.
+                $percent = max(1, (int)$this->GetBuffer('LastAppliedPercent'));
+            } else {
+                $percent = (int)round(max(0.0, min(1.0, ($high - $filteredLux) / ($high - $low))) * 100);
+                $percent = max(1, $percent);
+                $lastPercent = (int)$this->GetBuffer('LastAppliedPercent');
+                $minimumStep = max(1, min(100, $this->ReadPropertyInteger('MinimumBrightnessStep')));
+                if ($stateChanged || $this->GetBuffer('OutputOff') !== '0' || $lastPercent <= 0
+                    || abs($percent - $lastPercent) >= $minimumStep) {
+                    $this->ApplyTargets($percent);
+                }
+            }
+            $this->SetValue('CalculatedBrightness', $percent);
             $this->SetValue('Status', $this->Translate('Ambient control active'));
         }
         $this->SetStatus(102);
     }
 
+    private function FilterLux(float $lux): float
+    {
+        $lux = max(0.0, $lux);
+        $smoothingSeconds = max(0, $this->ReadPropertyInteger('LuxSmoothingSeconds'));
+        $previous = $this->GetBuffer('FilteredLux');
+        $previousAt = (int)$this->GetBuffer('FilteredLuxAt');
+        $now = time();
+        if ($previous === '' || $previousAt <= 0 || $smoothingSeconds === 0) {
+            $filtered = $lux;
+        } else {
+            $elapsed = max(0, $now - $previousAt);
+            $alpha = 1.0 - exp(-$elapsed / $smoothingSeconds);
+            $filtered = (float)$previous + $alpha * ($lux - (float)$previous);
+        }
+        $this->SetBuffer('FilteredLux', (string)$filtered);
+        $this->SetBuffer('FilteredLuxAt', (string)$now);
+        return $filtered;
+    }
+
+    private function ResolveAmbientState(float $lux): array
+    {
+        $active = $this->AmbientOutputActive();
+        $offLux = $this->ReadPropertyInteger('DarkLux');
+        $onLux = max(0, $offLux - max(0, $this->ReadPropertyInteger('LuxHysteresis')));
+        $candidate = !$active && $lux <= $onLux ? 'on' : ($active && $lux >= $offLux ? 'off' : '');
+        if ($candidate === '') {
+            $this->SetBuffer('PendingLuxState', '');
+            $this->SetBuffer('PendingLuxSince', '');
+            $this->SetBuffer('AmbientActive', $active ? '1' : '0');
+            return [$active, false];
+        }
+
+        $pendingState = $this->GetBuffer('PendingLuxState');
+        if ($pendingState !== $candidate) {
+            $this->SetBuffer('PendingLuxState', $candidate);
+            $this->SetBuffer('PendingLuxSince', (string)time());
+            return [$active, false];
+        }
+
+        $stableSeconds = max(0, $this->ReadPropertyInteger('LuxStabilitySeconds'));
+        $pendingSince = (int)$this->GetBuffer('PendingLuxSince');
+        if (time() - $pendingSince < $stableSeconds) return [$active, false];
+
+        $newActive = $candidate === 'on';
+        $this->SetBuffer('AmbientActive', $newActive ? '1' : '0');
+        $this->SetBuffer('PendingLuxState', '');
+        $this->SetBuffer('PendingLuxSince', '');
+        return [$newActive, $newActive !== $active];
+    }
+
+    private function AmbientOutputActive(): bool
+    {
+        $active = $this->GetBuffer('AmbientActive');
+        if ($active === '1') return true;
+        if ($active === '0') return false;
+        $outputOff = $this->GetBuffer('OutputOff');
+        if ($outputOff === '0') return true;
+        if ($outputOff === '1') return false;
+        foreach ($this->Targets() as $target) {
+            foreach (['SwitchID', 'BrightnessID'] as $key) {
+                $id = (int)($target[$key] ?? 0);
+                if ($id > 0 && IPS_VariableExists($id) && (float)GetValue($id) > 0) return true;
+            }
+        }
+        return false;
+    }
+
     private function ApplyTargets(int $percent): void
     {
         $this->SetBuffer('OutputOff', '0');
+        $this->SetBuffer('AmbientActive', '1');
+        $this->SetBuffer('LastAppliedPercent', (string)$percent);
         $profileID = $this->EffectiveActiveProfile();
         foreach ($this->Targets() as $target) {
             $settings = $this->TargetProfile($target, $profileID);
@@ -606,10 +698,10 @@ class DynamicLighting extends IPSModuleStrict
             $id = (int)($target['BrightnessID'] ?? 0);
             if ($id > 0 && IPS_VariableExists($id)) {
                 $scale = (int)($target['BrightnessScale'] ?? 100) === 255 ? 255 : 100;
-                RequestAction($id, (int)round($brightness * $scale / 100));
+                $this->RequestActionIfChanged($id, (int)round($brightness * $scale / 100));
             }
             $id = (int)($target['SwitchID'] ?? 0);
-            if ($id > 0 && IPS_VariableExists($id)) RequestAction($id, $brightness > 0);
+            if ($id > 0 && IPS_VariableExists($id)) $this->RequestActionIfChanged($id, $brightness > 0);
             if ($brightness === 0) continue;
             $id = (int)($target['ColorID'] ?? 0);
             $colorValue = $settings['ColorValue'] ?? null;
@@ -617,16 +709,29 @@ class DynamicLighting extends IPSModuleStrict
             $id = (int)($target['TemperatureID'] ?? 0);
             $temperature = (int)($settings['Temperature'] ?? 0);
             if ($id > 0 && $temperature > 0 && IPS_VariableExists($id)) {
-                RequestAction($id, $temperature);
+                $this->RequestActionIfChanged($id, $temperature);
             } else {
                 $id = (int)($target['ColorID'] ?? 0);
-                if ($id > 0 && $color !== null && IPS_VariableExists($id)) RequestAction($id, $color);
+                if ($id > 0 && $color !== null && IPS_VariableExists($id)) $this->RequestActionIfChanged($id, $color);
             }
         }
     }
 
+    private function RequestActionIfChanged(int $id, bool|int $value): void
+    {
+        if (!IPS_VariableExists($id)) return;
+        $currentValue = GetValue($id);
+        if (is_bool($value) && (bool)$currentValue === $value) return;
+        if (is_int($value) && is_numeric($currentValue) && abs((float)$currentValue - $value) < 0.000001) return;
+        RequestAction($id, $value);
+    }
+
     private function TurnLightsOff(): void
     {
+        $this->SetBuffer('AmbientActive', '0');
+        $this->SetBuffer('PendingLuxState', '');
+        $this->SetBuffer('PendingLuxSince', '');
+        $this->SetBuffer('LastAppliedPercent', '0');
         if ($this->GetBuffer('OutputOff') === '1') {
             $this->SetValue('CalculatedBrightness', 0);
             return;
@@ -641,9 +746,9 @@ class DynamicLighting extends IPSModuleStrict
         }
         foreach ($this->Targets() as $target) {
             $id = (int)($target['BrightnessID'] ?? 0);
-            if ($id > 0 && IPS_VariableExists($id)) RequestAction($id, 0);
+            if ($id > 0 && IPS_VariableExists($id)) $this->RequestActionIfChanged($id, 0);
             $id = (int)($target['SwitchID'] ?? 0);
-            if ($id > 0 && IPS_VariableExists($id)) RequestAction($id, false);
+            if ($id > 0 && IPS_VariableExists($id)) $this->RequestActionIfChanged($id, false);
         }
         $this->SetValue('CalculatedBrightness', 0);
     }
@@ -655,7 +760,12 @@ class DynamicLighting extends IPSModuleStrict
         if (!function_exists('SZS_CallScene')) throw new RuntimeException('The Scene Control action SZS_CallScene is unavailable.');
         $this->SetBuffer('RequestedScene', (string)$number);
         $this->SetBuffer('RequestedSceneUntil', (string)(time() + 30));
-        $this->SetBuffer('OutputOff', $number === $this->ReadPropertyInteger('OffScene') ? '1' : '0');
+        $isOffScene = $number === $this->ReadPropertyInteger('OffScene');
+        $this->SetBuffer('OutputOff', $isOffScene ? '1' : '0');
+        $this->SetBuffer('AmbientActive', $isOffScene ? '0' : '1');
+        $this->SetBuffer('PendingLuxState', '');
+        $this->SetBuffer('PendingLuxSince', '');
+        $this->SetBuffer('LastAppliedPercent', $isOffScene ? '0' : '');
         SZS_CallScene($control, $number);
     }
 
