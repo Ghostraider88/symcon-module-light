@@ -335,7 +335,7 @@
                      {
                          "type":  "ExpansionPanel",
                          "caption": "Scene integration",
-                         "items":  [ {"type":"Label","caption":"Automatic mode controls lights by lux and time. Any boolean trigger can load a scene. Priority holds it while true; optional ambient-demand gating delays activation until the lux/time automation would switch lights on. Resume can return to automatic mode when the trigger turns off."},
+                         "items":  [ {"type":"Label","caption":"Automatic mode controls lights by lux and time. Any boolean trigger can load a scene. Priority holds it while true; optional ambient-demand gating delays activation until the lux/time automation would switch lights on. Resume can return to automatic mode when the trigger turns off. The configured off scene, when activated outside the schedule, resumes automatic control at the next daily start."},
                                        {
                                            "type":  "SelectInstance",
                                            "name":  "SceneControlID",

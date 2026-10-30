@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.1 - Build 18 - 2026-10-30
+
+- Resume automatic lighting at the next configured daily start after the Good Night scene or the configured Off scene runs outside the schedule.
+- Keep the separate persistent Off mode available for manual shutdowns.
+
 ## 1.1 - Build 17 - 2026-10-19
 
 - Limit retries for mismatched target states to one apply every two minutes so offline devices do not receive repeated commands on every lux update.

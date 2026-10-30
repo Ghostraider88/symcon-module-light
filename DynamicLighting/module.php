@@ -11,6 +11,7 @@ class DynamicLighting extends IPSModuleStrict
     private const OFF = 1;
     private const MANUAL = 2;
     private const TV = 3;
+    private const OFF_UNTIL_START = 4;
     private const TARGET_REFRESH_RETRY_SECONDS = 120;
     private const SCENE_CONTROL_MODULE_ID = '{87F46796-CC43-442D-94FD-AAA0BD8D9F54}';
     private const PROFILE_SPRING = '{4AD0B7A1-5A2B-4E53-A261-11E8FC522101}';
@@ -44,6 +45,7 @@ class DynamicLighting extends IPSModuleStrict
         $this->RegisterPropertyString('EditProfileID', '');
         $this->RegisterAttributeString('TargetProfileData', '');
         $this->RegisterAttributeString('SelectedProfileID', '');
+        $this->RegisterAttributeInteger('ResumeAmbientAt', 0);
         // Kept for existing configurations; new configurations use Profiles and TargetProfiles.
         $this->RegisterPropertyString('Season', 'winter');
         $this->RegisterPropertyString('Targets', '[]');
@@ -54,6 +56,17 @@ class DynamicLighting extends IPSModuleStrict
         $this->RegisterPropertyInteger('TVScene', 5);
         $this->RegisterPropertyString('SceneTriggers', '[]');
         $this->RegisterTimer('EvaluateTimer', 0, 'DLT_EvaluateAndRefresh($_IPS[\'TARGET\']);');
+    }
+
+    public function Migrate(string $JSONData): string
+    {
+        parent::Migrate($JSONData);
+        $data = json_decode($JSONData);
+        if (!is_object($data)) return '';
+        if (!isset($data->attributes) || !is_object($data->attributes)) $data->attributes = new stdClass();
+        if (property_exists($data->attributes, 'ResumeAmbientAt')) return '';
+        $data->attributes->ResumeAmbientAt = 0;
+        return json_encode($data, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE);
     }
 
     public function GetConfigurationForm(): string
@@ -304,9 +317,15 @@ class DynamicLighting extends IPSModuleStrict
         if ($priorityScene > 0 && $active !== $priorityScene) {
             $this->SetBuffer('PrioritySceneNumber', '');
         }
-        $this->SetValue('Mode', self::MANUAL);
-        $this->SetValue('Status', $this->Translate('Manual scene') . ': ' . $name);
         $isOffScene = $active === $this->ReadPropertyInteger('OffScene');
+        $isNightOff = $isOffScene && ((int)$this->GetValue('Mode') === self::OFF_UNTIL_START || !$this->WithinSchedule());
+        if ($isNightOff) {
+            $this->EnterOffUntilNextStart(false);
+        } else {
+            $this->WriteAttributeInteger('ResumeAmbientAt', 0);
+            $this->SetValue('Mode', self::MANUAL);
+            $this->SetValue('Status', $this->Translate('Manual scene') . ': ' . $name);
+        }
         $this->SetBuffer('OutputOff', $isOffScene ? '1' : '0');
         $this->SetBuffer('AmbientActive', $isOffScene ? '0' : '1');
         $this->SetBuffer('PendingLuxState', '');
@@ -430,7 +449,8 @@ class DynamicLighting extends IPSModuleStrict
                 ['Value' => self::AMBIENT, 'Caption' => $this->Translate('Ambient'), 'IconValue' => '', 'IconActive' => false, 'Color' => -1],
                 ['Value' => self::OFF, 'Caption' => $this->Translate('Off'), 'IconValue' => '', 'IconActive' => false, 'Color' => -1],
                 ['Value' => self::MANUAL, 'Caption' => $this->Translate('Manual scene'), 'IconValue' => '', 'IconActive' => false, 'Color' => -1],
-                ['Value' => self::TV, 'Caption' => $this->Translate('Priority scene'), 'IconValue' => '', 'IconActive' => false, 'Color' => -1]
+                ['Value' => self::TV, 'Caption' => $this->Translate('Priority scene'), 'IconValue' => '', 'IconActive' => false, 'Color' => -1],
+                ['Value' => self::OFF_UNTIL_START, 'Caption' => $this->Translate('Off until next start'), 'IconValue' => '', 'IconActive' => false, 'Color' => -1]
             ], JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE), 'DISPLAY' => 2, 'LAYOUT' => 1
         ]);
         $this->MaintainAction('Mode', true);
@@ -467,13 +487,16 @@ class DynamicLighting extends IPSModuleStrict
                         $this->CallScene($sceneNumber);
                         if (!empty($trigger['Priority'])) {
                             $this->SetBuffer('PrioritySceneNumber', (string)$sceneNumber);
+                            $this->WriteAttributeInteger('ResumeAmbientAt', 0);
                             $this->SetValue('Mode', self::TV);
                         } else {
+                            $this->WriteAttributeInteger('ResumeAmbientAt', 0);
                             $this->SetValue('Mode', self::MANUAL);
                         }
                     }
                 } elseif (!empty($trigger['ResumeOnFalse']) && !$this->HasActiveSceneTrigger()) {
                     $this->SetBuffer('PrioritySceneNumber', '');
+                    $this->WriteAttributeInteger('ResumeAmbientAt', 0);
                     $this->SetValue('Mode', self::AMBIENT);
                 }
             }
@@ -500,9 +523,15 @@ class DynamicLighting extends IPSModuleStrict
             $this->EvaluateAndRefresh();
             return;
         }
-        if ($ident !== 'Mode' || !is_int($value) || !in_array($value, [self::AMBIENT, self::OFF, self::MANUAL, self::TV], true)) {
+        if ($ident !== 'Mode' || !is_int($value) || !in_array($value, [self::AMBIENT, self::OFF, self::MANUAL, self::TV, self::OFF_UNTIL_START], true)) {
             throw new InvalidArgumentException('Invalid mode action.');
         }
+        if ($value === self::OFF_UNTIL_START) {
+            $this->EnterOffUntilNextStart(true);
+            $this->UpdateVisualizationValue($this->VisualizationPayload());
+            return;
+        }
+        $this->WriteAttributeInteger('ResumeAmbientAt', 0);
         $this->SetValue('Mode', $value === self::TV ? self::MANUAL : $value);
         if ($value === self::OFF) {
             $this->TurnLightsOff();
@@ -519,6 +548,7 @@ class DynamicLighting extends IPSModuleStrict
     }
     public function ResumeAmbient(): void
     {
+        $this->WriteAttributeInteger('ResumeAmbientAt', 0);
         $this->SetValue('Mode', self::AMBIENT);
         $this->Evaluate();
         $this->UpdateVisualizationValue($this->VisualizationPayload());
@@ -526,10 +556,32 @@ class DynamicLighting extends IPSModuleStrict
 
     public function SwitchOff(): void
     {
+        $this->WriteAttributeInteger('ResumeAmbientAt', 0);
         $this->SetValue('Mode', self::OFF);
         $this->TurnLightsOff();
         $this->SetValue('Status', $this->Translate('Off'));
         $this->UpdateVisualizationValue($this->VisualizationPayload());
+    }
+
+    private function EnterOffUntilNextStart(bool $turnLightsOff): void
+    {
+        $resumeAt = $this->ReadAttributeInteger('ResumeAmbientAt');
+        if ((int)$this->GetValue('Mode') !== self::OFF_UNTIL_START || $resumeAt <= time()) {
+            $this->WriteAttributeInteger('ResumeAmbientAt', $this->NextStartTimestamp());
+        }
+        $this->SetValue('Mode', self::OFF_UNTIL_START);
+        if ($turnLightsOff) $this->TurnLightsOff();
+        $this->SetValue('Status', $this->Translate('Off until next start'));
+    }
+
+    private function NextStartTimestamp(): int
+    {
+        $start = $this->ParseTime($this->ReadPropertyString('StartTime'));
+        if ($start === null) return 0;
+        $now = new DateTimeImmutable();
+        $next = $now->setTime(intdiv($start, 60), $start % 60, 0);
+        if ($next <= $now) $next = $next->modify('+1 day');
+        return $next->getTimestamp();
     }
 
     public function EvaluateAndRefresh(): void
@@ -546,8 +598,20 @@ class DynamicLighting extends IPSModuleStrict
         $lux = (float)GetValue($this->ReadPropertyInteger('LuxVariableID'));
         $this->SetValue('Illuminance', $lux);
         $mode = (int)$this->GetValue('Mode');
+        if ($mode === self::OFF_UNTIL_START) {
+            $resumeAt = $this->ReadAttributeInteger('ResumeAmbientAt');
+            if ($resumeAt <= 0 || time() < $resumeAt) {
+                $this->SetValue('CalculatedBrightness', 0);
+                $this->SetValue('Status', $this->Translate('Off until next start'));
+                return;
+            }
+            $this->WriteAttributeInteger('ResumeAmbientAt', 0);
+            $this->SetValue('Mode', self::AMBIENT);
+            $mode = self::AMBIENT;
+        }
         $priorityTrigger = $this->ActivePriorityTrigger($lux);
         if ($priorityTrigger !== null) {
+            $this->WriteAttributeInteger('ResumeAmbientAt', 0);
             $priorityScene = (int)($priorityTrigger['SceneNumber'] ?? 0);
             if ((int)$this->GetBuffer('PrioritySceneNumber') !== $priorityScene) {
                 $this->CallScene($priorityScene);
@@ -1200,6 +1264,7 @@ class DynamicLighting extends IPSModuleStrict
             self::OFF => $this->Translate('Off'),
             self::MANUAL => $this->Translate('Manual scene'),
             self::TV => $this->Translate('Priority scene'),
+            self::OFF_UNTIL_START => $this->Translate('Off until next start'),
             default => $this->Translate('Ambient')
         };
         $checks = [
@@ -1208,7 +1273,7 @@ class DynamicLighting extends IPSModuleStrict
         ];
         return json_encode([
             'type' => 'delta',
-            'state' => ModuleVisuState::cssState($mode === self::OFF ? 'inactive' : ($mode === self::MANUAL ? 'info' : 'active')),
+            'state' => ModuleVisuState::cssState(in_array($mode, [self::OFF, self::OFF_UNTIL_START], true) ? 'inactive' : ($mode === self::MANUAL ? 'info' : 'active')),
             'stateLabel' => $label,
             'content' => $this->RenderContent($label, $checks),
             'footer' => (string)$this->GetValue('Status')

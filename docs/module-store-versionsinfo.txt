@@ -1,3 +1,6 @@
+Build 18 (2026-10-30)
+geändert: Nach Gute Nacht und nächtlicher AUS-Szene startet die Automatik am Tagesbeginn; Lux entscheidet über Licht.
+
 Build 17 (2026-10-19)
 korrigiert: Wiederholte Befehle bei abweichenden Lampenzuständen sind auf einen Versuch alle zwei Minuten begrenzt, damit Offline-Geräte nicht bei jedem Lux-Update neue Befehle erhalten.
 
